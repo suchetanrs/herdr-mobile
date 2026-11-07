@@ -1,0 +1,807 @@
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px calc(10px + var(--safe-right)) calc(28px + var(--safe-bottom)) calc(10px + var(--safe-left));
+}
+
+.empty {
+  margin: 48px 20px;
+  text-align: center;
+  color: var(--dim);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+/* "9 agents · 1 needs you" (Herdr's status bar words) */
+.summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 6px 4px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.summary-machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+  font-size: var(--fs-xs);
+}
+
+.machine-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 18px 6px 2px;
+  font-size: var(--fs-xs);
+  color: var(--dim);
+  text-transform: none;
+}
+
+/* Section headers: Herdr's group header (11px medium, dim; in the status color for priority sections). */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dim);
+  letter-spacing: 0.01em;
+}
+.section-count {
+  color: var(--dim);
+  font-weight: 400;
+}
+
+.inbox-section + .inbox-section {
+  margin-top: 4px;
+}
+
+/* A space: a card of Herdr's surface, with the agents that put it in its section under it. */
+.space-card {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 200ms;
+}
+.space-card.sec-blocked {
+  border-color: color-mix(in srgb, var(--blocked) 38%, var(--border));
+}
+.space-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 8px 10px 12px;
+  transition: background 120ms;
+}
+.space-row:active,
+.space-row:hover {
+  background: var(--hover);
+}
+.space-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.space-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 500;
+  font-size: 15.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  letter-spacing: -0.005em;
+}
+.machine-tag {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--dim);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0 5px;
+  line-height: 16px;
+}
+.space-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.icon-stack {
+  display: inline-flex;
+  gap: 3px;
+  color: var(--muted);
+}
+.space-row-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.chev {
+  color: var(--dim);
+}
+
+.space-agents {
+  border-top: 1px solid var(--border);
+  padding: 4px 4px 4px 4px;
+  background: color-mix(in srgb, var(--background) 60%, var(--canvas));
+}
+.agent-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: var(--touch);
+  padding: 0 10px 0 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: background 120ms;
+}
+.agent-line:hover,
+.agent-line:active {
+  background: var(--hover);
+}
+.agent-line-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.agent-line-place {
+  flex: 1 1 auto;
+  color: var(--dim);
+}
+/* "+2": live sub-agents, in the most urgent one's color (Herdr's folded count). */
+.sub-chip {
+  flex: none;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--raised);
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.draft-mark {
+  flex: none;
+  display: inline-flex;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+/* A plain list in a card: pinned agents, idle spaces. */
+.list-card {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  margin-bottom: 8px;
+}
+.space-line {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 48px;
+  padding: 0 8px 0 9px;
+  border-radius: 9px;
+  transition: background 120ms;
+}
+.space-line:hover,
+.space-line:active {
+  background: var(--hover);
+}
+.space-line-name {
+  flex: 1;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+}
+.space-line-meta {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.age {
+  flex: none;
+  font-size: 11px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+/* "alice, pro": the Claude login an agent runs under (my-agents: 10px, dim, left of the age). */
+.account {
+  flex: none;
+  max-width: 34%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--dim);
+}
+.agent-row .account {
+  font-size: 10.5px;
+  margin-right: -4px;
+}
+.agent-account {
+  font-size: 10.5px;
+  padding-right: 2px;
+}
+
+/* ---- space screen ---- */
+.tab-strip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 6px 2px 2px;
+  margin: 0 -2px;
+}
+.tab-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Herdr's tab pill (tabs mod): 29px, rounded 7, raised + border when active (44px on phones). */
+.tab-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--chrome);
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 220px;
+  transition:
+    background 120ms,
+    color 120ms;
+}
+.tab-pill:hover {
+  background: var(--hover);
+}
+.tab-pill.active {
+  background: var(--raised);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.tab-pill .prog {
+  color: var(--muted);
+}
+.tab-pill-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.tab-group {
+  scroll-margin-top: 8px;
+}
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 8px 8px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dim);
+}
+.group-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.group-index:empty {
+  display: none;
+}
+.group-meta {
+  flex: none;
+  color: var(--dim);
+  font-weight: 400;
+}
+.group-name:empty {
+  display: none;
+}
+.group-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+.rows {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  padding: 3px;
+}
+
+.agent-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 58px;
+  padding: 7px 6px 7px 9px;
+  border-radius: 9px;
+  transition: background 120ms;
+}
+.agent-row:hover,
+.agent-row:active {
+  background: var(--hover);
+}
+.agent-row.active {
+  background: var(--selected);
+}
+.agent-row.sub {
+  min-height: var(--touch);
+  padding-left: 22px;
+  gap: 8px;
+}
+.agent-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.agent-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.pin-mark {
+  color: var(--dim);
+  flex: none;
+}
+.agent-row.sub .agent-row-name {
+  font-size: 14px;
+  color: var(--muted);
+}
+.agent-row.plain .agent-row-name {
+  color: var(--muted);
+}
+.agent-row-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--dim);
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* The tab's number, when a row is the whole tab (Herdr numbers tabs 1-9). */
+.tab-no {
+  flex: none;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.tab-rows {
+  margin-top: 10px;
+}
+.tab-rows .tab-anchor {
+  scroll-margin-top: 8px;
+}
+.tab-rows .tab-anchor + .tab-anchor {
+  border-top: 1px solid var(--border);
+}
+
+/* Sub-agent tree lines (agents mod: 1.5px, rounded elbow). */
+.tree {
+  display: inline-flex;
+  align-self: stretch;
+  flex: none;
+}
+.tree-seg {
+  width: 10px;
+  margin-right: 4px;
+  position: relative;
+}
+.tree-v::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: -8px;
+  bottom: -8px;
+  border-left: 1.5px solid var(--input);
+}
+.tree-elbow::before {
+  bottom: 50%;
+  border-bottom: 1.5px solid var(--input);
+  border-bottom-left-radius: 6px;
+}
+.tree-tee::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  bottom: -8px;
+  border-left: 1.5px solid var(--input);
+}
+
+/* ---- alerts ---- */
+.list-head {
+  display: flex;
+  align-items: center;
+}
+.list-head .section-head {
+  margin-bottom: 8px;
+}
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.alert-list:empty {
+  display: none;
+}
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background 120ms;
+}
+.alert-row:last-child {
+  border-bottom: 0;
+}
+.alert-row:hover:not(:disabled) {
+  background: var(--hover);
+}
+.alert-row:disabled {
+  opacity: 0.55;
+}
+.alert-row .toast-dot {
+  opacity: 0.35;
+}
+.alert-row.unread .toast-dot,
+.alert-row.live .toast-dot {
+  opacity: 1;
+}
+.alert-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.alert-title {
+  font-size: 14px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.alert-row.unread .alert-title {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.alert-body {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.settings-head {
+  margin-top: 28px;
+}
+.settings {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.setting-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.setting-hint {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.setting-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+/* A switch from a checkbox: a 52x44 target, the track and knob drawn inside. Herdr's blue when on. */
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 52px;
+  height: 44px;
+  margin: 0 -4px 0 0;
+  background: none;
+  position: relative;
+  cursor: pointer;
+}
+.switch::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 48px;
+  height: 30px;
+  border-radius: 15px;
+  background: var(--input);
+  transition: background 160ms var(--ease);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  background: #fff;
+  transition: transform 180ms var(--ease);
+  box-shadow: 0 1px 3px #00000059;
+}
+.switch:checked::before {
+  background: var(--done);
+}
+.switch:checked::after {
+  transform: translateX(18px);
+}
+.switch:focus-visible {
+  outline: none;
+}
+.switch:focus-visible::before {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.setting-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  cursor: default;
+}
+.choice-set {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.segmented.choice {
+  align-self: flex-start;
+  max-width: 100%;
+  margin-left: -3px;
+}
+.segmented.choice button {
+  font-size: 13.5px;
+}
+.stepper {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+.stepper-value {
+  min-width: 26px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.setting:last-child {
+  border-bottom: 0;
+}
+.settings-page .settings-head:first-child {
+  margin-top: 14px;
+}
+
+/* ---- new space ---- */
+.ns-page .settings-head:first-of-type {
+  margin-top: 14px;
+}
+.ns-folder {
+  position: relative;
+}
+.field.invalid {
+  border-color: var(--blocked);
+}
+.ns-error {
+  margin: 6px 4px 0;
+  color: var(--blocked);
+  font-size: var(--fs-sm);
+}
+.ns-form-error {
+  margin-top: 16px;
+}
+.ns-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--working-soft);
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+}
+.ns-complete {
+  margin-top: 4px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  box-shadow: var(--shadow);
+}
+.ns-complete-row,
+.ns-folder-row,
+.ns-choice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: var(--touch);
+  padding: 0 10px;
+  border-radius: 9px;
+  text-align: left;
+  color: var(--foreground);
+  transition: background 120ms;
+}
+.ns-complete-row {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+.ns-complete-row:hover,
+.ns-folder-row:hover,
+.ns-choice:hover:not(:disabled) {
+  background: var(--hover);
+}
+.ns-folder-row.on,
+.ns-choice.on {
+  background: var(--selected);
+}
+.ns-folder-row > .icon,
+.ns-complete-row > .icon {
+  color: var(--dim);
+  flex: none;
+}
+.ns-choice:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+.ns-choice:disabled .prog {
+  opacity: 0.5;
+}
+.ns-list {
+  margin-top: 8px;
+}
+.ns-choice-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 14px;
+}
+.ns-hint {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.ns-check {
+  color: var(--done);
+  flex: none;
+}
+.ns-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 0 10px;
+}
+.ns-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 18px 0 8px;
+}
+.ns-actions .btn {
+  min-width: 160px;
+}
+.state-card .btn {
+  margin-top: 12px;
+}
+
+@media (min-width: 640px) {
+  .scroll > * {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Signed-in devices: rows aren't toggles. */
+.setting.device {
+  cursor: default;
+}
+.device-this {
+  color: var(--dim);
+}

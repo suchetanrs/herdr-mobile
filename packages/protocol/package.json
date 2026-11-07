@@ -1,0 +1,20 @@
+{
+  "name": "@herdr-mobile/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Typed messages shared by the herdr-mobile bridge and its web client.",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

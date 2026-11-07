@@ -1,0 +1,891 @@
+.agent-bar {
+  touch-action: pan-y;
+}
+.agent-bar .prog-tile {
+  width: 32px;
+  height: 32px;
+}
+.agent-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.pager {
+  display: inline-flex;
+  gap: 3px;
+  flex: none;
+}
+.pager span {
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--input);
+}
+.pager span.on {
+  background: var(--muted);
+}
+.pager-text {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Terminal / Conversation, and the terminal's tools: one 44px row (every target 44px). */
+.view-tabs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 0 calc(4px + var(--safe-right)) 0 calc(8px + var(--safe-left));
+  background: var(--chrome);
+  border-bottom: 1px solid var(--border);
+}
+/* A segmented control whose segments are full 44px targets; the pill is drawn inside. */
+.segmented {
+  display: inline-flex;
+  align-items: stretch;
+  height: 44px;
+  position: relative;
+}
+.segmented::before {
+  content: "";
+  position: absolute;
+  inset: 6px 0;
+  border-radius: 9px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  z-index: -2;
+}
+.segmented button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  padding: 0 13px;
+  font-size: 13px;
+  color: var(--muted);
+  transition: color 140ms;
+}
+.segmented button::before {
+  content: "";
+  position: absolute;
+  inset: 9px 3px;
+  border-radius: 6px;
+  background: transparent;
+  transition:
+    background 140ms,
+    box-shadow 140ms;
+  z-index: -1;
+}
+.segmented button > * {
+  position: relative;
+}
+.segmented button.on {
+  color: var(--foreground);
+}
+.segmented button.on::before {
+  background: var(--raised);
+  box-shadow: 0 1px 2px #00000033;
+}
+.segmented {
+  isolation: isolate;
+}
+.segmented.compact button {
+  padding: 0 12px;
+}
+
+/* A 44px icon (or icon + label) button with a rounded highlight inside. */
+.tool-btn {
+  position: relative;
+  flex: none;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  isolation: isolate;
+}
+.tool-btn::before {
+  content: "";
+  position: absolute;
+  inset: 6px 3px;
+  border-radius: 8px;
+  z-index: -1;
+  transition: background 120ms;
+}
+.tool-btn:hover::before,
+.tool-btn:active::before,
+.tool-btn.on::before {
+  background: var(--hover);
+}
+.tool-btn.on {
+  color: var(--foreground);
+}
+.tool-btn:disabled {
+  opacity: 0.4;
+}
+.zoom {
+  position: relative;
+}
+.zoom-btn .zoom-label {
+  min-width: 30px;
+  text-align: left;
+  color: var(--foreground);
+}
+
+/* Small menus (text size) */
+.menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% - 2px);
+  right: 0;
+  width: 264px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: menu-in 160ms var(--ease);
+  transform-origin: top right;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+.menu-label {
+  padding: 6px 8px 2px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+.zoom-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.zoom-size {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  text-align: left;
+}
+.menu-item:hover,
+.menu-item:active {
+  background: var(--hover);
+}
+.menu-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 14px;
+}
+.menu-hint {
+  font-size: 12px;
+  color: var(--dim);
+}
+.menu-item .icon {
+  color: var(--accent);
+}
+
+.agent-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  position: relative;
+}
+
+/* The terminal: the desktop's grid, scaled by font size only; it pans when wider than the screen. */
+.term-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: var(--background);
+}
+.term-host {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--background);
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+/* Top-aligned, like a terminal: no empty band above the grid. */
+.term-mount {
+  width: max-content;
+  padding: 6px 8px 8px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.term-mount .xterm {
+  padding: 0;
+}
+/* History above the live grid (terminal/historyView.ts): rows line up with xterm's cells. */
+.term-history {
+  font-family: "JetBrains Mono", "Symbols Nerd Font", ui-monospace, monospace;
+  font-size: var(--th-font, 12px);
+  line-height: var(--th-row, 14px);
+  letter-spacing: var(--th-ls, 0);
+  color: var(--th-fg);
+  background: var(--th-bg);
+  font-variant-ligatures: none;
+}
+.th-row {
+  height: var(--th-row, 14px);
+  white-space: pre;
+  overflow: hidden;
+}
+.th-chunk {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto calc(var(--rows, 1) * var(--th-row, 14px));
+}
+.th-spacer {
+  height: calc(var(--rows, 0) * var(--th-row, 14px));
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--th-row, 14px) * 0.3),
+    color-mix(in srgb, var(--th-fg) 5%, transparent) calc(var(--th-row, 14px) * 0.3) calc(var(--th-row, 14px) * 0.7),
+    transparent calc(var(--th-row, 14px) * 0.7) var(--th-row, 14px)
+  );
+}
+.th-status,
+.th-alt {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0;
+  font-size: max(11px, calc(var(--th-font, 12px) * 0.85));
+  color: var(--muted);
+  white-space: nowrap;
+}
+.th-status {
+  height: calc(var(--th-row, 14px) * 2);
+}
+/* Notes stay in view when the grid is panned sideways, and wrap on a narrow screen. */
+.th-status,
+.th-alt {
+  position: sticky;
+  left: 0;
+  max-width: min(100%, calc(100vw - 40px));
+}
+.th-alt {
+  flex-wrap: wrap;
+}
+.th-status[hidden],
+.th-alt[hidden] {
+  display: none;
+}
+.th-alt {
+  min-height: calc(var(--th-row, 14px) * 2);
+  border-top: 1px dashed var(--border);
+  gap: 10px;
+  white-space: normal;
+  padding: 4px 0;
+}
+.th-alt-read {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+}
+.th-alt-read[hidden] {
+  display: none;
+}
+.term-host {
+  overflow-anchor: none;
+}
+.term-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.term-overlay-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow);
+}
+.term-wrap[data-phase="closed"] .term-mount,
+.term-wrap[data-phase="error"] .term-mount {
+  opacity: 0.45;
+}
+/* Panned away from the cursor: one tap back to it (typing does that too). */
+.follow-pill {
+  position: absolute;
+  right: calc(12px + var(--safe-right));
+  bottom: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 16px 0 13px;
+  border-radius: 22px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  animation: menu-in 180ms var(--ease);
+}
+.follow-pill .icon {
+  color: var(--accent);
+}
+
+.conversation-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 32px;
+  text-align: center;
+  color: var(--dim);
+}
+.conversation-empty h3 {
+  margin: 6px 0 0;
+  color: var(--foreground);
+  font-size: 16px;
+  font-weight: 600;
+}
+.conversation-empty p {
+  margin: 0;
+  max-width: 340px;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Input area: approve bar, composer, quick keys; above the phone's home bar. */
+.agent-input {
+  flex: none;
+  background: var(--chrome);
+  border-top: 1px solid var(--border);
+  padding: 0 calc(0px + var(--safe-right)) var(--safe-bottom) calc(0px + var(--safe-left));
+}
+:root[data-keyboard="up"] .agent-input {
+  padding-bottom: 0;
+}
+.agent-input-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.approve {
+  margin: 8px 8px 0;
+  padding: 10px 10px 10px;
+  /* A long question with many options scrolls inside the card; the composer stays put. */
+  max-height: min(62vh, calc(var(--vvh, 100dvh) * 0.62));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blocked) 9%, var(--background));
+  border: 1px solid color-mix(in srgb, var(--blocked) 35%, var(--border));
+  animation: approve-in 260ms var(--ease);
+}
+@keyframes approve-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+}
+.approve-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+  min-width: 0;
+}
+.approve-q {
+  margin: 0 2px 9px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.approve-head {
+  flex-wrap: wrap;
+}
+/* The steps get their own row under "Needs you" / Dismiss. */
+.approve-tabs {
+  order: 3;
+  flex: 1 1 100%;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.approve-tabs::-webkit-scrollbar {
+  display: none;
+}
+.approve-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  border: 1px solid transparent;
+}
+.approve-tab.done {
+  color: var(--foreground);
+}
+.approve-tab.on {
+  background: var(--raised);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+.approve-tab-box {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+}
+.approve-detail {
+  margin: -3px 2px 9px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #00000026;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 9.5em;
+  overflow-y: auto;
+}
+.approve-review {
+  list-style: none;
+  margin: -2px 2px 10px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+}
+.approve-review li {
+  display: grid;
+  gap: 2px;
+}
+.approve-review-q {
+  color: var(--muted);
+}
+.approve-review-a {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.approve-warning {
+  color: var(--blocked);
+}
+.approve-actions {
+  display: grid;
+  gap: 6px;
+}
+.approve-btn {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--touch);
+  padding: 8px 14px 8px 9px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    transform 80ms,
+    background 120ms;
+}
+.approve-btn:active {
+  transform: scale(0.97);
+}
+.approve-btn.primary {
+  background: var(--solid);
+  color: var(--solid-foreground);
+  border-color: transparent;
+}
+.approve-btn.deny {
+  color: var(--blocked);
+}
+/* Where the terminal's own cursor (❯) is, when that isn't the white one. */
+.approve-btn.cursor:not(.primary) {
+  border-color: color-mix(in srgb, var(--foreground) 45%, var(--border));
+}
+.approve-btn.extra {
+  background: none;
+  color: var(--muted);
+}
+.approve-next {
+  justify-content: flex-start;
+}
+.approve-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.approve-desc {
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.approve-btn.primary .approve-desc {
+  color: color-mix(in srgb, var(--solid-foreground) 65%, transparent);
+}
+.approve-box {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+.approve-other {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--touch);
+  padding: 4px 4px 4px 6px;
+  border-radius: 10px;
+  background: var(--raised);
+  border: 1px solid color-mix(in srgb, var(--foreground) 45%, var(--border));
+}
+.approve-other-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--foreground);
+  /* 16 px: iOS zooms into smaller fields. */
+  font-size: 16px;
+}
+.approve-other-send,
+.approve-other-cancel {
+  flex: none;
+  width: 44px;
+  height: 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.approve-other-send {
+  background: var(--solid);
+  color: var(--solid-foreground);
+}
+.approve-other-cancel {
+  color: var(--muted);
+}
+.approve-dismiss {
+  flex: none;
+  margin: -7px -4px -7px auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.approve-dismiss:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.approve-dismiss .approve-key {
+  min-width: 0;
+  height: 18px;
+  font-size: 10.5px;
+}
+.approve-key {
+  flex: none;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  background: #ffffff14;
+  border: 1px solid #ffffff1a;
+}
+.approve-btn.primary .approve-key {
+  background: #00000014;
+  border-color: #0000001f;
+}
+.approve-label {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 6px 6px 4px 2px;
+}
+.composer-expand {
+  width: 44px;
+  height: 44px;
+  color: var(--dim);
+}
+.composer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  max-height: 132px;
+  resize: none;
+  padding: 11px 14px;
+  border-radius: 22px;
+  border: 1px solid var(--input);
+  background: var(--canvas);
+  color: var(--foreground);
+  font-size: 16px; /* 16px: iOS doesn't zoom into the field */
+  line-height: 1.35;
+  outline: none;
+  transition:
+    border-color 140ms,
+    border-radius 140ms;
+}
+.composer-input::placeholder {
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composer-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--input));
+}
+.composer.expanded .composer-input {
+  height: min(46vh, calc(var(--vvh, 100dvh) * 0.46));
+  max-height: none;
+  border-radius: 14px;
+}
+.send-btn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  transition:
+    opacity 140ms,
+    transform 80ms;
+}
+.send-btn:disabled {
+  opacity: 0.35;
+}
+.send-btn:not(:disabled):active {
+  transform: scale(0.93);
+}
+
+/* Quick keys: one scrolling row of 44px keys. */
+.keybar {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 8px 8px;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding: 0 8px;
+}
+.keybar::-webkit-scrollbar {
+  display: none;
+}
+.key {
+  flex: none;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  color: var(--foreground);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 80ms,
+    transform 60ms;
+}
+.key:active {
+  background: var(--selected);
+  transform: translateY(1px);
+}
+.key-wide {
+  min-width: 56px;
+}
+.key-mod {
+  min-width: 52px;
+}
+.key-danger {
+  color: var(--blocked);
+}
+.key-mod.on {
+  background: color-mix(in srgb, var(--accent) 25%, var(--raised));
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+  color: var(--accent);
+}
+.key-mod.locked {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.key-icon {
+  color: var(--muted);
+}
+.key-icon.on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+}
+
+:root[data-keyboard="up"] .agent-screen .view-tabs {
+  display: none;
+}
+
+/*
+ * A phone held sideways: the height is what's short. The view switch and tools move into the top bar,
+ * the composer and the quick keys share one row, so the terminal gets ~70% of the height.
+ */
+.agent-screen.landscape .topbar {
+  min-height: calc(44px + var(--safe-top));
+  gap: 4px;
+}
+.agent-screen.landscape .topbar .prog-tile {
+  width: 28px;
+  height: 28px;
+}
+.agent-screen.landscape .topbar-stack {
+  flex: 0 1 auto;
+  max-width: 30vw;
+}
+.agent-input.side .agent-input-row {
+  flex-direction: row;
+  align-items: flex-end;
+}
+.agent-input.side .composer {
+  flex: 1 1 42%;
+  min-width: 0;
+}
+.agent-input.side .composer.expanded .composer-input {
+  height: min(40vh, calc(var(--vvh, 100dvh) * 0.4));
+}
+.agent-input.side .keybar {
+  flex: 1 1 58%;
+  min-width: 0;
+  padding: 6px 8px 4px 0;
+}
+.agent-input.side .approve-actions {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* An unseen terminal (Conversation tab, agent blocked): read for the approve bar's question and answers. */
+.term-offscreen {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 720px;
+  height: 480px;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Inline in a list card (screen 1): the card says "Needs you" already. */
+.approve.inline {
+  margin: 2px 10px 10px 38px;
+  padding: 0;
+  background: none;
+  border: 0;
+  animation: none;
+}
+.approve.inline .approve-head {
+  margin-bottom: 6px;
+}
+.approve.inline {
+  max-height: none;
+  overflow: visible;
+}
+.approve.inline .approve-q {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+.approve-reading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  color: var(--muted);
+}

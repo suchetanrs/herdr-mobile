@@ -1,0 +1,24 @@
+{
+  "name": "@herdr-mobile/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The herdr-mobile bridge: herdr-core socket -> world model -> WebSocket clients.",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsx watch --conditions=source src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@herdr-mobile/protocol": "0.1.0",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/headless": "^6.0.0",
+    "fastify": "^5.12.8",
+    "ws": "^8.22.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
+}

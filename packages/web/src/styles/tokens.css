@@ -1,0 +1,105 @@
+/*
+ * Herdr's themes, resolved exactly as herdr-app settings.rs `resolve` does:
+ * graphite (dark, the default here, whatever the system says) and paper (light).
+ */
+:root {
+  color-scheme: dark;
+  --background: #17191d;
+  --surface: #17191d;
+  --canvas: #131518;
+  --chrome: #101114;
+  --popover: #25272b;
+  --raised: #2c2e31;
+  --hover: #ffffff0e;
+  --selected: #ffffff17;
+  --border: #ffffff18;
+  --input: #ffffff24;
+  --foreground: #eeeeef;
+  --terminal-foreground: #d2d4d9;
+  --muted: #98999b;
+  --dim: #696a6d;
+  --ring: #aeaeb0;
+  --accent: #96b2d7;
+  --accent-foreground: #17191d;
+  --solid: #eeeeef;
+  --solid-foreground: #111215;
+  --selection: #394454;
+  --working: #e5c07b;
+  --blocked: #f0705f;
+  --done: #76a8ff;
+  --idle: #696a6d;
+  --unknown: #696a6d;
+  /* status + "26" alpha, as Herdr's pill */
+  --blocked-soft: #f0705f26;
+  --working-soft: #e5c07b1f;
+  --done-soft: #76a8ff1f;
+  --ansi0: #45484f;
+  --ansi1: #dc8c95;
+  --ansi2: #a6bd91;
+  --ansi3: #d8be87;
+  --ansi4: #96b2d7;
+  --ansi5: #b5a2ce;
+  --ansi6: #8cbdc3;
+  --ansi7: #d2d4d9;
+  --shadow: 0 10px 30px #00000066, 0 2px 6px #0000004d;
+
+  --font-ui: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Phone sizes; the desktop layout uses Herdr's own (13px UI). */
+  --fs: 15px;
+  --fs-sm: 13px;
+  --fs-xs: 12px;
+  --touch: 44px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Graphite unless the app picks paper (Settings: Light, or System on a light system); see useLight. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #ffffff;
+  --surface: #ffffff;
+  --canvas: #fafaf9;
+  --chrome: #f1f1ee;
+  --popover: #ffffff;
+  --raised: #f6f6f6;
+  --hover: #0000000c;
+  --selected: #00000012;
+  --border: #00000017;
+  --input: #00000026;
+  --foreground: #1b1b1e;
+  --terminal-foreground: #25272c;
+  --muted: #69696b;
+  --dim: #969698;
+  --ring: #5f5f62;
+  --accent: #1f62d0;
+  --accent-foreground: #ffffff;
+  --solid: #1b1b1e;
+  --solid-foreground: #ffffff;
+  --selection: #cfdcf5;
+  --working: #9a6700;
+  --blocked: #c93c2c;
+  --done: #2f6fe4;
+  --idle: #a8a8aa;
+  --unknown: #a8a8aa;
+  --blocked-soft: #c93c2c26;
+  --working-soft: #9a67001f;
+  --done-soft: #2f6fe41f;
+  --ansi0: #25272c;
+  --ansi1: #c62a2a;
+  --ansi2: #1a7f37;
+  --ansi3: #8f5d00;
+  --ansi4: #1f62d0;
+  --ansi5: #7a45c8;
+  --ansi6: #0f6f74;
+  --ansi7: #5f6068;
+  --shadow: 0 10px 30px #0000001f, 0 2px 6px #00000014;
+}

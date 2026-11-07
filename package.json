@@ -1,0 +1,40 @@
+{
+  "name": "herdr-mobile",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/protocol",
+    "packages/server",
+    "packages/web",
+    "packages/e2e"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/protocol packages/server && npm run build -w @herdr-mobile/web",
+    "typecheck": "tsc -b packages/protocol packages/server && tsc -p packages/protocol/tsconfig.test.json && tsc -p packages/server/tsconfig.test.json && tsc -p packages/web/tsconfig.json && tsc -p packages/e2e/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "npm run dev -w @herdr-mobile/server",
+    "start": "node packages/server/dist/main.js",
+    "lint": "biome check .",
+    "check:terminal": "npm run build && node scripts/check-terminal-stream.mjs",
+    "format": "biome format --write .",
+    "dev:web": "npm run dev -w @herdr-mobile/web",
+    "icons": "node scripts/make-icons.mjs",
+    "e2e": "npm test -w @herdr-mobile/e2e --",
+    "service:install": "bash scripts/install-service.sh",
+    "service:uninstall": "bash scripts/uninstall-service.sh",
+    "token:rotate": "bash scripts/rotate-token.sh",
+    "check:security": "node scripts/check-security.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "@types/node": "^22.20.5",
+    "playwright": "^1.65.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

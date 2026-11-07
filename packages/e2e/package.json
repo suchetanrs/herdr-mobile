@@ -1,0 +1,14 @@
+{
+  "name": "@herdr-mobile/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright end-to-end suite: iPhone (WebKit), Android and desktop against the built bridge.",
+  "scripts": {
+    "test": "playwright test",
+    "webkit-libs": "bash scripts/webkit-libs.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0"
+  }
+}

@@ -1,0 +1,48 @@
+# herdr-mobile bridge as a systemd --user service.
+# Installed by scripts/install-service.sh, which fills in @NODE@ (an absolute Node 22 path, no shell
+# profile needed) and @REPO@. Edit this template, then re-run the script; don't edit the installed copy.
+[Unit]
+Description=herdr-mobile bridge (Herdr on your phone)
+Documentation=file://@REPO@/docs/guide.md
+After=network-online.target
+Wants=network-online.target
+# Restart forever: never give up after a burst of crashes.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO@
+ExecStart=@NODE@ @REPO@/packages/server/dist/main.js
+Restart=always
+RestartSec=1
+# herdr-core's socket is $XDG_RUNTIME_DIR/herdr-core/default.sock; %t is that runtime dir.
+Environment=XDG_RUNTIME_DIR=%t
+Environment=NODE_ENV=production
+# Listens on loopback and the Tailscale address only (followed as Tailscale comes and goes); never the Wi-Fi
+# or docker networks. HERDR_MOBILE_BIND in ~/.config/herdr-mobile/env changes that (docs/guide.md "Security"): a LAN
+# address is plain HTTP, so the sign-in token and everything typed would cross that network in cleartext.
+Environment=HERDR_MOBILE_PORT=8787
+Environment=HERDR_MOBILE_SEEN_SYNC=1
+# Behind `tailscale serve` (HTTPS later): uncomment so cookies get Secure and the auth limit sees real peers.
+#Environment=HERDR_MOBILE_TRUST_PROXY=1
+# Local overrides (optional): KEY=value lines, e.g. HERDR_MOBILE_LOG_LEVEL=debug.
+EnvironmentFile=-%h/.config/herdr-mobile/env
+# Logs go to journald: journalctl --user -u herdr-mobile -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=herdr-mobile
+KillSignal=SIGTERM
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=yes
+# Hardening. A backstop for leaks; the bridge normally uses well under 100 MB.
+MemoryMax=512M
+# seccomp filters (effective in user units): no raw/packet sockets (netlink is for finding the Tailscale address).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+LockPersonality=yes
+RestrictRealtime=yes
+# No ProtectSystem/PrivateTmp: in a user unit on this Ubuntu they only add a user namespace (no real protection) that
+# can't read /proc/<pid>/environ of the user's own processes, which the Claude accounts need (docs/guide.md "Claude accounts").
+
+[Install]
+WantedBy=default.target

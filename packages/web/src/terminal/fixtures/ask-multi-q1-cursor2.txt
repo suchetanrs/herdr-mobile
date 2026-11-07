@@ -1,0 +1,30 @@
+
+ ▐▛███▛█   Claude Code v2.1.319
+▝▜██████▀  Haiku 5.5 · Claude Max
+ ▝▝   ▝▝   ~/work/warehouse-inventory/claude-question-captures/data/q-runs/r1
+
+
+❯ Call the AskUserQuestion tool exactly once, right now, with exactly these 3 questions and nothing else. Q1 header "Database", multiSelect false, question "Which database should the new inventory
+  service use for its primary store, considering that we need strong consistency for stock counts, cheap horizontal reads for the catalog pages, and a migration path from the existing MySQL 5.7
+  cluster that the warehouse team still runs?", options: "PostgreSQL" (description "Strong consistency, rich SQL, logical replication from MySQL via a one-off migration job; the team already knows it
+  well"), "CockroachDB" (description "Distributed SQL with serializable transactions; more moving parts and a license to check"), "Keep MySQL" (description "Upgrade to 8.0 in place; least work now,
+  least headroom later"). Q2 header "Features", multiSelect true, question "Which features should the first release include?", options "Search" (description "Full-text search over items"), "Barcode
+  scan" (description "Scan items with the phone camera"), "CSV export" (description "Download stock as a spreadsheet"). Q3 header "Name", multiSelect false, question "What should the service be
+  called?", options "stockd" (description "Short and unix-y"), "inventory-api" (description "Says what it is"). Then after the answer, reply with just the word OK.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☐ Database  ☐ Features  ☐ Name  ✔ Submit  →
+
+│ Which database should the new inventory service use for its primary store, considering that we need strong consistency for stock counts, cheap horizontal reads for the catalog pages, and a migration
+│ path from the existing MySQL 5.7 cluster that the warehouse team still runs?
+
+  1. PostgreSQL
+     Strong consistency, rich SQL, logical replication from MySQL via a one-off migration job; the team already knows it well
+❯ 2. CockroachDB
+     Distributed SQL with serializable transactions; more moving parts and a license to check
+  3. Keep MySQL
+     Upgrade to 8.0 in place; least work now, least headroom later
+  4. Type something.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  5. Chat about this
+
+Enter to select · Tab/Arrow keys to navigate · Esc to cancel

@@ -1,0 +1,23 @@
+
+ ▐▛███▛█   Claude Code v2.1.319
+▝▜██████▀  Haiku 5.5 · Claude Max
+ ▝▝   ▝▝   ~/work/warehouse-inventory/claude-question-captures/data/q-runs/r4
+
+
+❯ Call AskUserQuestion once with two questions: Q1 header "Color", multiSelect false, question "Favourite color?", options "Red" (description "Warm"), "Blue" (description "Cool"). Q2 header "Pets",
+  multiSelect true, question "Which pets?", options "Cat" (description "Meows"), "Dog" (description "Barks"). Then reply OK.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+←  ☐ Color  ☒ Pets  ✔ Submit  →
+
+Review your answers
+
+⚠ You have not answered all questions
+
+ ● Which pets?
+   → Dog, hamster
+
+Ready to submit your answers?
+
+❯ 1. Submit answers
+  2. Cancel
