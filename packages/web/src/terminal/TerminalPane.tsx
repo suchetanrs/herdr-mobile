@@ -392,6 +392,9 @@ export const TerminalPane = forwardRef<TerminalApi, TerminalPaneProps>(function 
         const ta = termRef.current?.textarea;
         if (!ta) return;
         ta.setAttribute('inputmode', 'text');
+        // A touch on the grid may have focused it already with inputmode=none (no keyboard): focus it anew, in
+        // this tap, so iOS raises the keyboard for it.
+        if (document.activeElement === ta) ta.blur();
         termRef.current?.focus();
       },
       blur() {

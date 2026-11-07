@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { HerdrMark } from '../components/Chrome';
 import { Icon } from '../components/Icon';
 import { useServices } from '../hooks/app';
+import { useTapFocus } from '../hooks/gestures';
 import { type SignInResult, signIn } from '../lib/auth';
 
 const MESSAGES: Record<Exclude<SignInResult, 'ok'>, string> = {
@@ -32,6 +33,7 @@ export function tokenFromInput(text: string): string {
 export function TokenScreen() {
   const { conn, store } = useServices();
   const [token, setToken] = useState('');
+  const tapFocus = useTapFocus<HTMLInputElement>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(() => (linkResult ? MESSAGES[linkResult] : null));
 
@@ -63,6 +65,7 @@ export function TokenScreen() {
         <label className="field">
           <Icon name="key" size={16} />
           <input
+            ref={tapFocus}
             type="password"
             autoComplete="off"
             autoCapitalize="off"

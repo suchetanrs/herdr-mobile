@@ -1,3 +1,5 @@
+import { isEditable } from './viewport';
+
 /**
  * Tap vs. scroll on button strips that scroll sideways (quick keys, tab pills, answers). A button fires only
  * on a real tap: the finger moved less than TAP_SLOP, the strip didn't scroll under it, and the strip wasn't
@@ -67,6 +69,8 @@ export function guardTaps(strip: HTMLElement): () => void {
   const down = (e: PointerEvent) => {
     if (!e.isPrimary) return;
     verdict = null;
+    // A text field in the strip (an answer typed in) is never a pan's button: its taps always go through.
+    if (isTextField(e.target)) return;
     t.down(e.pointerId, e.clientX, e.clientY, scrollLeft(), performance.now());
     if (!t.pending) verdict = false;
   };
@@ -92,7 +96,7 @@ export function guardTaps(strip: HTMLElement): () => void {
   const click = (e: MouseEvent) => {
     const v = verdict;
     verdict = null;
-    if (v === false) {
+    if (v === false && !isTextField(e.target)) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -110,5 +114,49 @@ export function guardTaps(strip: HTMLElement): () => void {
     strip.removeEventListener('pointercancel', cancel, true);
     document.removeEventListener('scroll', scroll, true);
     strip.removeEventListener('click', click, true);
+  };
+}
+
+/** Text fields: tapping one must bring up the phone keyboard. */
+export function isTextField(el: EventTarget | null): el is HTMLElement {
+  return isEditable(el instanceof Element ? el : null);
+}
+
+/**
+ * Focuses `field` in the touchend of a still tap on it, i.e. inside the touch itself. iOS raises its keyboard
+ * only for a focus made while it is handling the person's touch. A tap normally focuses the field later, from
+ * the mouse events iOS synthesizes after the touch, and in a home-screen app that step is where the keyboard
+ * goes missing. Nothing is prevented: the caret still lands where the finger was, and a pan stays a scroll.
+ */
+export function focusOnTap(field: HTMLElement): () => void {
+  let start: { id: number; x: number; y: number; at: number } | null = null;
+  const down = (e: TouchEvent) => {
+    const t = e.touches[0];
+    start = e.touches.length === 1 && t ? { id: t.identifier, x: t.clientX, y: t.clientY, at: performance.now() } : null;
+  };
+  const move = (e: TouchEvent) => {
+    const t = start && Array.from(e.touches).find((x) => x.identifier === start?.id);
+    if (t && start && Math.hypot(t.clientX - start.x, t.clientY - start.y) >= TAP_SLOP) start = null;
+  };
+  const up = (e: TouchEvent) => {
+    const s = start;
+    start = null;
+    const t = s && Array.from(e.changedTouches).find((x) => x.identifier === s.id);
+    if (!s || !t || e.touches.length > 0) return;
+    if (Math.hypot(t.clientX - s.x, t.clientY - s.y) >= TAP_SLOP || performance.now() - s.at > 800) return;
+    if (document.activeElement !== field && isTextField(field)) field.focus();
+  };
+  const cancel = () => {
+    start = null;
+  };
+  field.addEventListener('touchstart', down, { passive: true });
+  field.addEventListener('touchmove', move, { passive: true });
+  field.addEventListener('touchend', up);
+  field.addEventListener('touchcancel', cancel, { passive: true });
+  return () => {
+    field.removeEventListener('touchstart', down);
+    field.removeEventListener('touchmove', move);
+    field.removeEventListener('touchend', up);
+    field.removeEventListener('touchcancel', cancel);
   };
 }

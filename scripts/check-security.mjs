@@ -229,7 +229,10 @@ async function probe(base) {
     ['/api/folders?path=~', {}],
     ['/api/spaces', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"folder":"~"}' }],
     [`/api/spaces/sp${'0'.repeat(32)}/sessions`, {}],
-    [`/api/spaces/sp${'0'.repeat(32)}/tabs`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"start":{"kind":"shell"}}' }],
+    [
+      `/api/spaces/sp${'0'.repeat(32)}/tabs`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"start":{"kind":"shell"}}' },
+    ],
     ['/api/sessions', { method: 'DELETE' }],
     ['/api/nope', {}],
   ]) {

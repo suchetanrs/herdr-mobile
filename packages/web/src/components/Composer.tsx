@@ -1,5 +1,6 @@
-import { type FormEvent, type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSettings } from '../hooks/app';
+import { useTapFocus } from '../hooks/gestures';
 import { drafts } from '../lib/drafts';
 import { Icon } from './Icon';
 
@@ -36,7 +37,15 @@ export function Composer({
   const [text, setText] = useState(() => loadDraft(terminalId));
   const [expanded, setExpanded] = useState(false);
   const [sending, setSending] = useState(false);
-  const ref = useRef<HTMLTextAreaElement>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const tapFocus = useTapFocus<HTMLTextAreaElement>();
+  const setRef = useCallback(
+    (el: HTMLTextAreaElement | null) => {
+      ref.current = el;
+      tapFocus(el);
+    },
+    [tapFocus],
+  );
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Each agent has its own draft.
@@ -98,7 +107,7 @@ export function Composer({
         <Icon name={expanded ? 'collapse' : 'expand'} size={15} />
       </button>
       <textarea
-        ref={ref}
+        ref={setRef}
         className="composer-input"
         rows={1}
         value={text}

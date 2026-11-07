@@ -1,10 +1,11 @@
 import type { NewSpaceOptions, NewSpaceStart, StartChoice } from '@herdr-mobile/protocol';
 import { SPACE_NAME_MAX } from '@herdr-mobile/protocol';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
 import { BackButton, Screen } from '../components/Screen';
 import { useLive, useServices } from '../hooks/app';
+import { useTapFocus } from '../hooks/gestures';
 import { programOf } from '../lib/programs';
 import { back, navigate } from '../lib/router';
 import { completeFolder, createSpace, folderBase, NewSpaceFailure, newSpaceOptions } from '../lib/spaces';
@@ -59,7 +60,16 @@ export function NewSpaceScreen({ embedded = false }: { embedded?: boolean }) {
   const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
   const [folderFocus, setFolderFocus] = useState(false);
-  const folderInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement | null>(null);
+  const tapFocusFolder = useTapFocus<HTMLInputElement>();
+  const tapFocusName = useTapFocus<HTMLInputElement>();
+  const folderRef = useCallback(
+    (el: HTMLInputElement | null) => {
+      folderInput.current = el;
+      tapFocusFolder(el);
+    },
+    [tapFocusFolder],
+  );
   const completions = useCompletions(folder, folderFocus);
 
   useEffect(() => {
@@ -169,7 +179,7 @@ export function NewSpaceScreen({ embedded = false }: { embedded?: boolean }) {
         <label className={`field${errors.folder ? ' invalid' : ''}`}>
           <Icon name="folder" size={16} />
           <input
-            ref={folderInput}
+            ref={folderRef}
             type="text"
             inputMode="url"
             autoCapitalize="off"
@@ -238,6 +248,7 @@ export function NewSpaceScreen({ embedded = false }: { embedded?: boolean }) {
       <label className={`field${errors.name ? ' invalid' : ''}`}>
         <Icon name="layers" size={16} />
         <input
+          ref={tapFocusName}
           type="text"
           autoComplete="off"
           spellCheck={false}

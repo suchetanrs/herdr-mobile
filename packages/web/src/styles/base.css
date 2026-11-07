@@ -31,6 +31,16 @@ textarea {
   color: inherit;
 }
 
+/* Text fields stay plain touch targets whatever surrounds them (an inherited user-select: none or touch-action
+   can keep iOS from raising the keyboard, in the home-screen app especially). */
+input,
+textarea,
+[contenteditable="true"] {
+  touch-action: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 button {
   background: none;
   border: 0;

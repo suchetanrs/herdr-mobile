@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { guardTaps } from '../lib/tap';
+import { focusOnTap, guardTaps, isTextField } from '../lib/tap';
 
 /** Something between `el` and `stop` scrolls sideways (code blocks, tables): a horizontal swipe there is theirs. */
 function scrollsSideways(el: Element | null, stop: Element): boolean {
@@ -56,7 +56,8 @@ export function useEdgeBack(onBack: (() => void) | null): void {
     let s: { x: number; y: number; t: number } | null = null;
     const down = (e: TouchEvent) => {
       const t = e.touches[0];
-      s = e.touches.length === 1 && t && t.clientX < 24 ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
+      // A touch on a text field is the person typing, never a swipe back.
+      s = e.touches.length === 1 && t && t.clientX < 24 && !isTextField(e.target) ? { x: t.clientX, y: t.clientY, t: Date.now() } : null;
     };
     const up = (e: TouchEvent) => {
       const t = e.changedTouches[0];
@@ -81,5 +82,14 @@ export function useTapGuard<T extends HTMLElement>(): (el: T | null) => void {
   return useCallback((el: T | null) => {
     off.current?.();
     off.current = el ? guardTaps(el) : null;
+  }, []);
+}
+
+/** Ref for a text field: a tap focuses it inside the touch itself, so iOS raises the keyboard (lib/tap.ts focusOnTap). */
+export function useTapFocus<T extends HTMLElement>(): (el: T | null) => void {
+  const off = useRef<(() => void) | null>(null);
+  return useCallback((el: T | null) => {
+    off.current?.();
+    off.current = el ? focusOnTap(el) : null;
   }, []);
 }

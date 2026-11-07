@@ -1,5 +1,6 @@
-import { type FormEvent, useEffect, useState } from 'react';
-import { useTapGuard } from '../hooks/gestures';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import { useTapFocus, useTapGuard } from '../hooks/gestures';
 import { highlighted, nextSteps, otherSteps, type Prompt, type PromptOption, pickSteps, type Step, tabSteps } from '../terminal/prompt';
 import { Icon } from './Icon';
 
@@ -43,6 +44,15 @@ export function ApproveBar({
   const [busy, setBusy] = useState<string | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const guard = useTapGuard<HTMLElement>();
+  const otherInput = useRef<HTMLInputElement | null>(null);
+  const tapFocus = useTapFocus<HTMLInputElement>();
+  const otherRef = useCallback(
+    (el: HTMLInputElement | null) => {
+      otherInput.current = el;
+      tapFocus(el);
+    },
+    [tapFocus],
+  );
   const p = prompt ?? FALLBACK;
   const questionKey = `${p.kind}|${p.question ?? ''}|${p.tab ?? ''}`;
   // Another question on screen: close the text field.
@@ -75,8 +85,7 @@ export function ApproveBar({
       return (
         <form key={id} className="approve-other" onSubmit={submitText}>
           <input
-            // biome-ignore lint/a11y/noAutofocus: opened by a tap to type.
-            autoFocus
+            ref={otherRef}
             className="approve-other-input"
             aria-label="Your answer"
             placeholder="Type your answer"
@@ -95,7 +104,12 @@ export function ApproveBar({
     const press = () => {
       if (!o.other) void run(pickSteps(p, i), id);
       else if (inline) onOpen?.();
-      else setTyping(o.text ?? '');
+      else {
+        // The field must exist and take focus within this tap (not after a later render), or iOS won't raise
+        // its keyboard (the home-screen app least of all).
+        flushSync(() => setTyping(o.text ?? ''));
+        otherInput.current?.focus();
+      }
     };
     const box = p.multi && !o.extra;
     return (

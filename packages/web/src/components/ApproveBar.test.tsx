@@ -54,7 +54,16 @@ describe('ApproveBar with real Claude Code questions', () => {
 
   it('"Type something" opens a text field; sending types it into Claude\'s field and picks it', async () => {
     const onSteps = bar('ask-multi-q1');
+    // Checked after React's handler (on its root) but still inside the tap's own click: iOS raises the keyboard
+    // only for a focus made there, not after a later render (the old autoFocus).
+    let focusedInClick = false;
+    const onDocClick = () => {
+      focusedInClick = document.activeElement?.getAttribute('aria-label') === 'Your answer';
+    };
+    document.addEventListener('click', onDocClick);
     fireEvent.click(button('Type something'));
+    document.removeEventListener('click', onDocClick);
+    expect(focusedInClick).toBe(true);
     const input = screen.getByLabelText('Your answer');
     fireEvent.change(input, { target: { value: '  use 2 dbs ' } });
     await act(async () => fireEvent.submit(input.closest('form') as HTMLFormElement));
