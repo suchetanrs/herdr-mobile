@@ -121,3 +121,27 @@ function decodeURIComponentSafe(s: string): string {
     return s;
   }
 }
+
+/**
+ * The served web app's build id (`<meta name="herdr-build">` in index.html, written by the web build: git sha +
+ * build time), re-read when index.html changes; '' when there's none (not built, dev server).
+ */
+export function webBuildReader(webDir: string): () => string {
+  const index = path.join(path.resolve(webDir), 'index.html');
+  let seen = -1;
+  let build = '';
+  return () => {
+    try {
+      const st = fs.statSync(index);
+      if (st.mtimeMs !== seen) {
+        seen = st.mtimeMs;
+        const m = /<meta name="herdr-build" content="([^"]{1,80})"/.exec(fs.readFileSync(index, 'utf8'));
+        build = m?.[1] ?? '';
+      }
+    } catch {
+      seen = -1;
+      build = '';
+    }
+    return build;
+  };
+}

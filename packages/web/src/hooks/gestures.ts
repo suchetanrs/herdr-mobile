@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { ab } from '../lib/ab';
 import { focusOnTap, guardTaps, isTextField } from '../lib/tap';
 
 /** Something between `el` and `stop` scrolls sideways (code blocks, tables): a horizontal swipe there is theirs. */
@@ -52,7 +53,7 @@ export function useEdgeBack(onBack: (() => void) | null): void {
   cb.current = onBack;
   const on = onBack !== null;
   useEffect(() => {
-    if (!on || !standalone()) return;
+    if (!on || !standalone() || ab('noEdgeBack')) return;
     let s: { x: number; y: number; t: number } | null = null;
     const down = (e: TouchEvent) => {
       const t = e.touches[0];
@@ -90,6 +91,6 @@ export function useTapFocus<T extends HTMLElement>(): (el: T | null) => void {
   const off = useRef<(() => void) | null>(null);
   return useCallback((el: T | null) => {
     off.current?.();
-    off.current = el ? focusOnTap(el) : null;
+    off.current = el && !ab('noTapFocus') ? focusOnTap(el) : null;
   }, []);
 }

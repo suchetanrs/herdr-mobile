@@ -5,6 +5,7 @@ import { ConversationClient } from '../conversation/client';
 import { ServicesContext } from '../hooks/app';
 import type { Services } from '../lib/app';
 import { Connection } from '../lib/connection';
+import { DiagRecorder } from '../lib/diag';
 import { LookingTracker } from '../lib/looking';
 import { AppStore } from '../lib/store';
 import { ClientNotifierHub } from '../notify/notifier';
@@ -31,6 +32,7 @@ export function renderWith(ui: ReactElement, world: World) {
     looking: new LookingTracker(conn),
     toasts: new ToastStore(),
     notifier: new ClientNotifierHub(),
+    diag: new DiagRecorder(store, async () => 200),
   };
   const r = render(<ServicesContext.Provider value={services}>{ui}</ServicesContext.Provider>);
   return { ...r, services };

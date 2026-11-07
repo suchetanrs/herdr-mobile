@@ -44,6 +44,8 @@ export interface AppState {
   view: World;
   seq: number;
   serverId: string | null;
+  /** The web build the bridge serves now (from `welcome`); null until heard or from an older bridge. */
+  serverBuild: string | null;
   conn: ConnState;
   /** Newest first. */
   alerts: AlertEntry[];
@@ -100,6 +102,7 @@ export class AppStore {
       view: world,
       seq: 0,
       serverId: null,
+      serverBuild: null,
       conn: { status: 'connecting', attempt: 0, retryAt: null, rttMs: null, everSynced: false, lostAt: null, offline: false },
       alerts: [],
     };
@@ -149,6 +152,7 @@ export class AppStore {
     switch (m.t) {
       case 'welcome':
         if (this.state.serverId !== m.serverId) this.set({ serverId: m.serverId, seq: 0 });
+        if ((m.build ?? null) !== this.state.serverBuild) this.set({ serverBuild: m.build ?? null });
         return 'ok';
       case 'snapshot': {
         const alerts = this.mergeAlerts(m.alerts);

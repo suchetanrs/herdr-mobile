@@ -60,6 +60,8 @@ export interface Config {
   socketPath: string;
   /** Ours (token etc.), never Herdr's. */
   configDir: string;
+  /** Where diagnostics reports from devices go (HERDR_MOBILE_DIAG_FILE; default ~/.local/state/herdr-mobile/diag.jsonl). */
+  diagFile?: string;
   /** Use this token instead of the stored one (tests, scripted runs). */
   token: string | null;
   doneGraceMs: number;
@@ -161,6 +163,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: int(env.HERDR_MOBILE_PORT, 8787, 'HERDR_MOBILE_PORT'),
     socketPath: env.HERDR_MOBILE_CORE_SOCKET || defaultSocketPath(env),
     configDir: env.HERDR_MOBILE_CONFIG_DIR || path.join(xdgConfig, 'herdr-mobile'),
+    diagFile:
+      env.HERDR_MOBILE_DIAG_FILE && path.isAbsolute(env.HERDR_MOBILE_DIAG_FILE)
+        ? env.HERDR_MOBILE_DIAG_FILE
+        : path.join(env.XDG_STATE_HOME || path.join(home, '.local', 'state'), 'herdr-mobile', 'diag.jsonl'),
     token: tokenFrom(env.HERDR_MOBILE_TOKEN),
     doneGraceMs: int(env.HERDR_MOBILE_DONE_GRACE_MS, 1200, 'HERDR_MOBILE_DONE_GRACE_MS'),
     heartbeatMs: int(env.HERDR_MOBILE_HEARTBEAT_MS, 15_000, 'HERDR_MOBILE_HEARTBEAT_MS'),

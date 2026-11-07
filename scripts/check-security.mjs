@@ -234,6 +234,7 @@ async function probe(base) {
       { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"start":{"kind":"shell"}}' },
     ],
     ['/api/sessions', { method: 'DELETE' }],
+    ['/api/diag', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"info":{}}' }],
     ['/api/nope', {}],
   ]) {
     const r = await get(p, o);
@@ -252,6 +253,16 @@ async function probe(base) {
     if (!loop)
       check(viaBearer.status === 401, T('the real token as a bearer header is refused over the network'), `HTTP ${viaBearer.status}`);
     else check(viaBearer.status === 200, T('the token as a bearer header works for local tools on loopback'), `HTTP ${viaBearer.status}`);
+    const diagBearer = await get('/api/diag', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: '{"info":{}}',
+    });
+    check(
+      diagBearer.status === 401,
+      T('POST /api/diag takes a device session only (the token as a bearer: 401)'),
+      `HTTP ${diagBearer.status}`,
+    );
   }
   check((await wsTry(base, '/ws')).status === 401, T('WebSocket without a session: 401 before the upgrade'));
   check((await wsTry(base, '/ws?token=x')).status === 401, T('WebSocket with ?token=: 401'));

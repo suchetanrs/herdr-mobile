@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useConn, useSelector, useServices, useToasts } from '../hooks/app';
+import { useConn, useDiag, useSelector, useServices, useToasts } from '../hooks/app';
 import { navigate } from '../lib/router';
 import { Icon } from './Icon';
 
@@ -111,5 +111,16 @@ export function Splash({ text }: { text: string }) {
         {text}
       </div>
     </div>
+  );
+}
+
+/** Diagnostics on: a small mark in the corner (never takes a touch). */
+export function DiagBadge() {
+  const d = useDiag();
+  if (!d.enabled) return null;
+  return (
+    <span className="diag-badge" aria-hidden="true">
+      diag on · {d.count}
+    </span>
   );
 }

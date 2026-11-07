@@ -7,6 +7,7 @@ import { ToastSink, ToastStore } from '../notify/toasts';
 import { TerminalClient } from '../terminal/streams';
 import { checkSession, wsUrl } from './auth';
 import { Connection } from './connection';
+import { DiagRecorder } from './diag';
 import { LookingTracker } from './looking';
 import { attentionCounts } from './model';
 import { navigate } from './router';
@@ -21,10 +22,13 @@ export interface Services {
   looking: LookingTracker;
   toasts: ToastStore;
   notifier: ClientNotifierHub;
+  /** On-device diagnostics (off unless switched on). */
+  diag: DiagRecorder;
 }
 
 export function createServices(): Services {
   const store = new AppStore();
+  const diag = new DiagRecorder(store);
   let terminals: TerminalClient | null = null;
   const conn = new Connection({
     store,
@@ -60,5 +64,5 @@ export function createServices(): Services {
     badge.update(attentionCounts(view), { blocked: color('--blocked', '#f0705f'), done: color('--done', '#76a8ff') });
   });
 
-  return { store, conn, terminals, conversations, looking, toasts, notifier };
+  return { store, conn, terminals, conversations, looking, toasts, notifier, diag };
 }

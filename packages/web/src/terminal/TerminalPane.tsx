@@ -3,6 +3,7 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import type { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal } from '@xterm/xterm';
+import { ab } from '../lib/ab';
 import '@xterm/xterm/css/xterm.css';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
@@ -394,7 +395,7 @@ export const TerminalPane = forwardRef<TerminalApi, TerminalPaneProps>(function 
         ta.setAttribute('inputmode', 'text');
         // A touch on the grid may have focused it already with inputmode=none (no keyboard): focus it anew, in
         // this tap, so iOS raises the keyboard for it.
-        if (document.activeElement === ta) ta.blur();
+        if (document.activeElement === ta && !ab('noRefocus')) ta.blur();
         termRef.current?.focus();
       },
       blur() {

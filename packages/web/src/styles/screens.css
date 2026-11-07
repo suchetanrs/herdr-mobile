@@ -972,3 +972,9 @@
   background: var(--working-soft);
   font-size: var(--fs-sm);
 }
+
+.about-value {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}

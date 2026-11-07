@@ -16,6 +16,8 @@ export interface HealthOptions {
   client: Pick<CoreClient, 'on'>;
   world: () => World;
   clients: () => number;
+  /** The served web app's build id. */
+  webBuild?: () => string;
   now?: () => number;
 }
 
@@ -73,6 +75,7 @@ export class Health {
         startedAt: new Date(this.startedAt).toISOString(),
         uptimeS: Math.round((now - this.startedAt) / 1000),
         clients: this.opts.clients(),
+        webBuild: this.opts.webBuild?.() || null,
       },
     };
   }

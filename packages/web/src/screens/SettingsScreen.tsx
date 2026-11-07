@@ -1,8 +1,11 @@
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Icon, type IconName } from '../components/Icon';
 import { BackButton, Screen } from '../components/Screen';
-import { useConn, useSelector, useServices, useSettings } from '../hooks/app';
-import { type Device, listDevices, revokeDevice, signOutEverywhere } from '../lib/auth';
+import { useConn, useDiag, useSelector, useServices, useSettings } from '../hooks/app';
+import { AB_FLAGS, type AbFlag, ab, setAb } from '../lib/ab';
+import { checkSession, type Device, listDevices, revokeDevice, signOutEverywhere } from '../lib/auth';
+import { BUILD } from '../lib/build';
+import { isStandalone } from '../lib/diag';
 import { duration } from '../lib/format';
 import { back } from '../lib/router';
 import { type Settings, settings as store } from '../lib/settings';
@@ -205,6 +208,111 @@ export function DevicesGroup() {
   );
 }
 
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="setting">
+      <span className="setting-text">
+        <span>{label}</span>
+        <span className="setting-hint about-value">{value}</span>
+      </span>
+    </div>
+  );
+}
+
+const SEND_TEXT: Record<string, string> = {
+  sent: 'Sent to the bridge',
+  limited: 'Too many reports; wait a minute',
+  'signed-out': 'Not signed in',
+  failed: 'Couldn’t send',
+};
+
+/** Build, connection facts, and on-device diagnostics (lib/diag.ts) with the A/B switches (lib/ab.ts). */
+export function AboutGroup() {
+  const { diag } = useServices();
+  const d = useDiag();
+  const conn = useConn('status', 'offline');
+  const serverBuild = useSelector((st) => st.serverBuild);
+  const [signedIn, setSignedIn] = useState<string>('checking…');
+  const [flags, setFlags] = useState(() => Object.fromEntries(Object.keys(AB_FLAGS).map((f) => [f, ab(f as AbFlag)])));
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void checkSession().then((r) => {
+      if (live) setSignedIn(r === 'ok' ? 'yes (session cookie accepted)' : r === 'unauthorized' ? 'no' : 'can’t tell (bridge unreachable)');
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const mode = window.matchMedia?.('(display-mode: standalone)').matches ? 'standalone' : 'browser';
+  const navStandalone = (navigator as Navigator & { standalone?: boolean }).standalone;
+  return (
+    <Group title="About">
+      <Fact label="This page’s build" value={BUILD} />
+      <Fact
+        label="The bridge serves"
+        value={serverBuild ? (serverBuild === BUILD ? `${serverBuild} (same)` : `${serverBuild} (differs: reloads when idle)`) : 'unknown'}
+      />
+      <Fact label="Connection" value={`${conn.status}${conn.offline ? ' · device offline' : ''}`} />
+      <Fact label="Signed in" value={signedIn} />
+      <Fact
+        label="Display mode"
+        value={`${mode}${navStandalone !== undefined ? ` · navigator.standalone ${navStandalone}` : ''}${isStandalone() ? ' (home-screen app)' : ''}`}
+      />
+      <Toggle
+        on={d.enabled}
+        onChange={(v) => diag.setEnabled(v)}
+        label="Diagnostics"
+        hint="Records touches, focus, the viewport and the connection (never what you type or see) and sends them to the bridge every 20 s"
+      />
+      {d.enabled && (
+        <>
+          <div className="setting-actions">
+            <button
+              type="button"
+              className="btn btn-small"
+              disabled={sending}
+              onClick={async () => {
+                setSending(true);
+                await diag.flush('manual');
+                setSending(false);
+              }}
+            >
+              {sending ? <Icon name="spinner" size={14} spin /> : null}
+              Send now
+            </button>
+            <span className="setting-hint">
+              {d.count} events
+              {d.lastSend ? ` · ${SEND_TEXT[d.lastSend.result] ?? d.lastSend.result} ${duration(Date.now() - d.lastSend.at)} ago` : ''}
+            </span>
+          </div>
+          {(Object.keys(AB_FLAGS) as AbFlag[]).map((f) => (
+            <Toggle
+              key={f}
+              on={flags[f] === true}
+              onChange={(v) => {
+                setAb(f, v);
+                setFlags((x) => ({ ...x, [f]: v }));
+                diag.push('ab', { flag: f, on: v });
+              }}
+              label={`A/B: ${f}`}
+              hint={AB_FLAGS[f]}
+            />
+          ))}
+          <div className="setting-actions">
+            <button type="button" className="btn btn-small" onClick={() => window.location.reload()}>
+              Reload with these switches
+            </button>
+            <a className="btn btn-small" href="/app/keyboard-test.html">
+              Keyboard test page (no app code)
+            </a>
+          </div>
+        </>
+      )}
+    </Group>
+  );
+}
+
 /** Settings: this device's alerts, look, terminal and composer behaviour. Kept on the device (localStorage). */
 export function SettingsScreen({ embedded = false }: { embedded?: boolean }) {
   const s = useSettings();
@@ -330,6 +438,8 @@ export function SettingsScreen({ embedded = false }: { embedded?: boolean }) {
       </Group>
 
       <DevicesGroup />
+
+      <AboutGroup />
 
       <Group title="Connection">
         <div className="setting">

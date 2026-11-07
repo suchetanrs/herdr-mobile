@@ -41,6 +41,8 @@ export interface WsTransportOptions {
   /** Creates a client's conversation streams; none: conversation messages are refused. */
   conversations?: (send: (m: ServerMessage) => void) => ConversationSession;
   heartbeatMs?: number;
+  /** The served web app's build id, sent in `welcome` so an old page knows to reload. */
+  webBuild?: () => string;
   logger?: Logger;
   /** Host names to answer to (DNS rebinding guard). */
   hosts?: HostCheck;
@@ -173,7 +175,14 @@ export class WsTransport {
       }) ?? null;
     s.conv = this.opts.conversations?.((m) => this.send(s, m)) ?? null;
     this.sessions.add(s);
-    this.send(s, { t: 'welcome', v: PROTOCOL_VERSION, serverId: this.serverId, heartbeatMs: this.heartbeatMs });
+    const build = this.opts.webBuild?.() ?? '';
+    this.send(s, {
+      t: 'welcome',
+      v: PROTOCOL_VERSION,
+      serverId: this.serverId,
+      heartbeatMs: this.heartbeatMs,
+      ...(build ? { build } : {}),
+    });
     // Old or minimal clients that never say hello still get a snapshot.
     s.helloTimer = setTimeout(() => this.sync(s, undefined), HELLO_TIMEOUT_MS);
     ws.on('pong', () => {

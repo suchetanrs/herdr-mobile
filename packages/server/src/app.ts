@@ -1,4 +1,5 @@
 import type { AddressInfo, Socket } from 'node:net';
+import path from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { ClaudeAccounts } from './accounts/accounts.js';
 import { AttentionEngine } from './attention/engine.js';
@@ -7,6 +8,7 @@ import { SessionStore } from './auth/sessions.js';
 import { stripToken, TokenSource } from './auth/token.js';
 import { type Config, DEFAULT_LIMITS } from './config.js';
 import { CoreClient } from './core/client.js';
+import { DiagLimiter, DiagLog } from './diag/log.js';
 import { Health } from './health.js';
 import type { Logger } from './log.js';
 import { InPageSink } from './notify/inpage.js';
@@ -22,13 +24,14 @@ import { TerminalHub } from './terminal/hub.js';
 import { ConversationHub } from './transcripts/hub.js';
 import { TranscriptLocator } from './transcripts/locate.js';
 import { ConversationSession } from './transport/conversation.js';
+import { registerDiagRoutes } from './transport/diag.js';
 import { HostCheck } from './transport/guard.js';
 import { frameworkError, registerHttp } from './transport/http.js';
 import { ConnectionGate, isLoopback, NetworkListeners, peerMatcher } from './transport/listen.js';
 import { StreamLog } from './transport/log.js';
 import { rawRefusal, registerSecurityHeaders } from './transport/security.js';
 import { registerSpaceRoutes } from './transport/spaces.js';
-import { registerStatic } from './transport/static.js';
+import { registerStatic, webBuildReader } from './transport/static.js';
 import { TerminalSession } from './transport/terminal.js';
 import { WsTransport } from './transport/ws.js';
 import { AgentTimes } from './world/agentTimes.js';
@@ -227,6 +230,7 @@ export function createBridge(config: Config): Bridge {
     store.on('patch', () => seen.update());
   }
 
+  const webBuild = webBuildReader(config.webDir);
   const ws = new WsTransport({
     sessions,
     log,
@@ -236,6 +240,7 @@ export function createBridge(config: Config): Bridge {
     terminals: (sink) => new TerminalSession({ hub, logger }, sink),
     conversations: (send) => new ConversationSession({ hub: conversations, logger }, send),
     heartbeatMs: config.heartbeatMs,
+    webBuild,
     logger,
     hosts,
     maxPerPeer: limits.maxWsPerPeer,
@@ -252,7 +257,7 @@ export function createBridge(config: Config): Bridge {
   store.on('patch', (ops) => ws.publish(log.patch(ops)));
   store.on('transitions', (t) => engine.onTransitions(t));
 
-  const health = new Health({ client, world: () => store.world, clients: () => ws.clientCount });
+  const health = new Health({ client, world: () => store.world, clients: () => ws.clientCount, webBuild });
   registerSecurityHeaders(http);
   registerHttp(http, {
     tokens,
@@ -287,6 +292,12 @@ export function createBridge(config: Config): Bridge {
     logger,
   });
   registerSpaceRoutes(http, { creator, tabs, home: config.home });
+  registerDiagRoutes(http, {
+    log: new DiagLog(config.diagFile ?? path.join(config.configDir, 'diag.jsonl')),
+    limiter: new DiagLimiter(),
+    build: webBuild,
+    logger,
+  });
   registerStatic(http, config.webDir);
   ws.attach(http.server);
 

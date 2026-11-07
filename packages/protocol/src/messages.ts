@@ -19,6 +19,8 @@ export interface WelcomeMessage {
   serverId: string;
   /** The bridge sends `hb` this often; a client that hears nothing for ~2x should reconnect. */
   heartbeatMs: number;
+  /** The web app build the bridge serves now (git sha + build time); a page from another build reloads. */
+  build?: string;
 }
 
 export interface SnapshotMessage {

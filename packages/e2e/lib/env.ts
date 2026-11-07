@@ -8,6 +8,8 @@ export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 /** Scratch for the e2e instance (gitignored): its token, transcript, logs, pid. */
 export const WORK = path.join(REPO, '.test-tmp/e2e');
 export const STATE_FILE = path.join(WORK, 'state.json');
+/** Diagnostics reports sent to the e2e bridge. */
+export const DIAG_FILE = path.join(WORK, 'diag.jsonl');
 export const PID_FILE = path.join(WORK, 'bridge.pid');
 export const LOG_FILE = path.join(WORK, 'bridge.log');
 export const CONV_DIR = path.join(WORK, 'conv');
@@ -117,6 +119,7 @@ export async function startInstance(): Promise<number> {
       HERDR_MOBILE_BIND: 'loopback',
       HERDR_MOBILE_PORT: String(E2E_PORT),
       HERDR_MOBILE_CONFIG_DIR: path.join(WORK, 'cfg'),
+      HERDR_MOBILE_DIAG_FILE: DIAG_FILE,
       HERDR_MOBILE_TOKEN: E2E_TOKEN,
       HERDR_MOBILE_INCLUDE_UNPLACED: '1',
       HERDR_MOBILE_SEEN_SYNC: '0',
