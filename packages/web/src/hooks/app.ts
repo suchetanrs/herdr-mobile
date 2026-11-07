@@ -106,21 +106,14 @@ export function useDrafts(): ReadonlySet<string> {
   return useSyncExternalStore(drafts.subscribe, drafts.withDrafts, drafts.withDrafts);
 }
 
-/** The diagnostics recorder's state (Settings > About, the badge). */
+/** The diagnostics recorder's state (Settings > Diagnostics). */
 export function useDiag(): { enabled: boolean; count: number; lastSend: { at: number; result: string } | null } {
   const { diag } = useServices();
   const sub = useRef((l: () => void) => diag.subscribe(l)).current;
-  const key = useSyncExternalStore(
+  useSyncExternalStore(
     sub,
-    () => `${diag.enabled}|${diag.lastSend?.at ?? 0}`,
+    () => diag.snapshot(),
     () => '',
   );
-  const [, tick] = useState(0);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: key (on/off, last send) restarts the ticker.
-  useEffect(() => {
-    if (!diag.enabled) return;
-    const t = setInterval(() => tick((n) => n + 1), 2000);
-    return () => clearInterval(t);
-  }, [diag, key]);
   return { enabled: diag.enabled, count: diag.count, lastSend: diag.lastSend };
 }

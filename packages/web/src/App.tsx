@@ -1,10 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { DiagBadge, Splash, Toasts } from './components/Chrome';
+import { Splash, Toasts } from './components/Chrome';
 import { useConn, useLight, useLive, useServices } from './hooks/app';
 import { DESKTOP, useMediaQuery, useVisualViewport } from './hooks/dom';
 import { useEdgeBack } from './hooks/gestures';
-import { ab } from './lib/ab';
 import { wakeChunkRetries, watchFailedLinks } from './lib/chunks';
 import { back, depth, parseRoute, type Route } from './lib/router';
 import { AgentScreen } from './screens/AgentScreen';
@@ -41,7 +40,7 @@ function useRoute(): Route {
               ? (root.dataset.swipe ?? 'next')
               : 'none';
       delete root.dataset.swipe;
-      if (!doc.startViewTransition || reduce || ab('noTransitions') || dir === 'none' || window.matchMedia?.(DESKTOP).matches) {
+      if (!doc.startViewTransition || reduce || dir === 'none' || window.matchMedia?.(DESKTOP).matches) {
         setRoute(next);
         return;
       }
@@ -132,7 +131,6 @@ export function App() {
     <div className={`app${!live && conn.everSynced ? ' stale' : ''}`}>
       {content}
       <Toasts />
-      <DiagBadge />
     </div>
   );
 }

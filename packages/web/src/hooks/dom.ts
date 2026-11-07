@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ab } from '../lib/ab';
 import { isEditable, SETTLE_MS, viewportState } from '../lib/viewport';
 
 export function useMediaQuery(query: string): boolean {
@@ -26,7 +25,6 @@ export const DESKTOP = '(min-width: 1024px)';
  */
 export function useVisualViewport(): void {
   useEffect(() => {
-    if (ab('noViewport')) return;
     const vv = window.visualViewport;
     const root = document.documentElement;
     let frame = 0;

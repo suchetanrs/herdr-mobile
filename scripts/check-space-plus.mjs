@@ -10,7 +10,6 @@
 //   FOLDER must hold a throwaway Claude session (e.g. `claude --model haiku -p "say pong"` run there).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { chromium, devices, webkit } from 'playwright';
 
@@ -20,7 +19,6 @@ const SHOTS = process.env.SHOTS ?? path.join(WORK, 'shots');
 const PORT = 8788;
 const BASE = `http://127.0.0.1:${PORT}`;
 const TOKEN = `sp-check-${'y'.repeat(40)}`;
-const HOME = os.homedir();
 const [FOLDER_ARG, SESSION, which = 'iphone,android,desktop'] = process.argv.slice(2);
 if (!FOLDER_ARG || !/^[0-9a-f-]{36}$/.test(SESSION ?? '')) {
   console.error('usage: node scripts/check-space-plus.mjs <folder> <session-id> [devices]');
@@ -226,7 +224,7 @@ try {
     check(Boolean(freshTab), 'its tab is named "Claude Code", as the + menu names it');
     const freshArgv = hcGet(fresh).argv;
     check(
-      freshArgv.slice(1, 4).join('|') === '-ic|"$@"; exec "$0" -i|' + freshArgv[0] && freshArgv.at(-1) === 'claude',
+      freshArgv.slice(1, 4).join('|') === `-ic|"$@"; exec "$0" -i|${freshArgv[0]}` && freshArgv.at(-1) === 'claude',
       'argv = $SHELL -ic \'"$@"; exec "$0" -i\' $SHELL claude',
       JSON.stringify(freshArgv),
     );

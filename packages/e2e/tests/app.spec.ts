@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import {
   APP_LINES,
+  DIAG_FILE,
   E2E_BLOCK_MS,
   E2E_MAX_FAILURES,
   E2E_TOKEN,
@@ -329,6 +330,28 @@ test('settings: the theme follows the choice, and sticks', async ({ page }) => {
   await page.getByRole('button', { name: 'System', exact: true }).click();
   // The suite runs with a dark color scheme.
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+});
+
+test('settings: diagnostics records events while on and sends them to the bridge without typed text', async ({ page }) => {
+  const size = () => (fs.existsSync(DIAG_FILE) ? fs.readFileSync(DIAG_FILE, 'utf8').length : 0);
+  const before = size();
+  await page.goto(link('#/settings'));
+  await live(page);
+  await page.getByRole('checkbox', { name: /Record events/ }).check();
+  await page.goto(`${E2E_URL}/${agentHash(state.conv, 'conversation')}`);
+  await expect(page.locator('.conv-list')).toBeVisible();
+  await page.locator('.composer-input').fill('typed words that must stay private');
+  await page.goto(`${E2E_URL}/#/settings`);
+  await page.getByRole('button', { name: 'Send to bridge' }).click();
+  await expect(page.getByText(/Sent to the bridge/)).toBeVisible();
+  await expect.poll(size).toBeGreaterThan(before);
+  const text = fs.readFileSync(DIAG_FILE, 'utf8').slice(before);
+  expect(text).not.toContain('typed words');
+  expect(text).not.toContain(E2E_TOKEN);
+  expect(text).toContain('"k":"start"');
+  expect(text).toContain('"k":"nav"');
+  await page.getByRole('checkbox', { name: /Record events/ }).uncheck();
+  await expect(page.getByRole('button', { name: 'Send to bridge' })).toHaveCount(0);
 });
 
 test.describe('on a light system', () => {

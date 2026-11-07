@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test';
-import fs from 'node:fs';
-import { DIAG_FILE, E2E_TOKEN, E2E_URL, readState, signInLink } from '../lib/env.js';
+import { E2E_TOKEN, E2E_URL, readState, signInLink } from '../lib/env.js';
 import { expect, test } from './fixtures.js';
 
 // The home-screen app (iOS "Add to Home Screen", Android "Install"): display-mode standalone and, on iOS,
@@ -155,41 +154,4 @@ test('home-screen app: the terminal keyboard button focuses the terminal inside 
   });
   expect(ta).toEqual({ label: 'Terminal input', mode: 'text' });
   await page.locator('.keybar .key-icon').tap();
-});
-
-test('diagnostics: #diag turns it on, a tap is recorded with what was under the finger, Send now reaches the bridge', async ({
-  page,
-}) => {
-  await standalonePage(page);
-  const before = fs.existsSync(DIAG_FILE) ? fs.readFileSync(DIAG_FILE, 'utf8').length : 0;
-  await page.goto(link(`#diag&/a/${encodeURIComponent(state.conv)}/conversation`));
-  await expect(page.locator('.conv-list')).toBeVisible();
-  expect(page.url()).not.toContain('diag');
-  await expect(page.locator('.diag-badge')).toBeVisible();
-  await page.locator('.composer-input').tap();
-  await page.locator('.composer-input').fill('typed words that must stay private');
-  await page.evaluate(() => {
-    window.location.hash = '#/settings';
-  });
-  await expect(page.getByText('This page’s build')).toBeVisible();
-  await expect(page.getByText('(same)')).toBeVisible();
-  await page.getByRole('button', { name: 'Send now' }).click();
-  await expect(page.getByText(/Sent to the bridge/)).toBeVisible();
-  await expect.poll(() => (fs.existsSync(DIAG_FILE) ? fs.readFileSync(DIAG_FILE, 'utf8').length : 0)).toBeGreaterThan(before);
-  const text = fs.readFileSync(DIAG_FILE, 'utf8').slice(before);
-  expect(text).not.toContain('typed words');
-  expect(text).not.toContain(E2E_TOKEN);
-  expect(text).toContain('"standalone":true');
-  expect(text).toMatch(/"k":"touchend","t":\d+,"tg":"[^"]*textarea\.composer-input\[Message\]"/);
-  // A diagnostics switch off again: no badge.
-  await page.goto(`${E2E_URL}/#diag-off`);
-  await page.reload();
-  await expect(page.locator('.diag-badge')).toHaveCount(0);
-});
-
-test('keyboard test page: served, no app code', async ({ page }) => {
-  const r = await page.goto(`${E2E_URL}/app/keyboard-test.html`);
-  expect(r?.status()).toBe(200);
-  await expect(page.locator('textarea')).toHaveCount(2);
-  expect(await page.locator('script').count()).toBe(0);
 });

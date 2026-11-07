@@ -655,6 +655,7 @@
   height: 18px;
   font-size: 10.5px;
 }
+/* biome-ignore lint/style/noDescendingSpecificity: different elements; .approve-dismiss .approve-key wins by specificity. */
 .approve-key {
   flex: none;
   min-width: 22px;

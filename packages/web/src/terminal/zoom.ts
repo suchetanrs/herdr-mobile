@@ -8,7 +8,6 @@ import { load, save } from '../lib/storage';
  * - font: a size the person picked (pinch, +/-).
  */
 export type Zoom = { mode: 'auto' } | { mode: 'fit' } | { mode: 'font'; font: number };
-export type ZoomMode = Zoom['mode'];
 
 export const MIN_FONT = 4;
 export const MAX_FONT = 32;

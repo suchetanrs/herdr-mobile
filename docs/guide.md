@@ -234,27 +234,18 @@ are in no pane), `ACCOUNTS` (1: Claude account per agent; 0 off), `DIAG_FILE` (a
 conversationProtocol, node, startedAt, uptimeS, clients, webBuild } }`. (`HERDR_MOBILE_HOST` is no longer used: the HTTP
 server listens on loopback and `BIND` adds the rest.)
 
-### Diagnostics (for problems only a real phone shows)
+### Diagnostics
 
-Settings > About shows this page's build (git sha + build time), the build the bridge serves now, the connection,
-whether the session cookie is accepted, and the display mode (browser or home-screen app). A page from an older build
-reloads by itself once the bridge serves a newer one (never while a text field has focus, at most once per build): a
-home-screen app on iOS is resumed rather than reloaded, so it could otherwise run an old build for days.
+A page from an older build reloads by itself once the bridge serves a newer one (never while a text field has focus,
+at most once per build): a home-screen app on iOS is resumed rather than reloaded, so it could otherwise run an old
+build for days. Settings > Diagnostics shows this page's build (git sha + build time).
 
-Settings > About > Diagnostics (or open the app with `#diag` at the end of the address; `#diag-off` turns it off)
-records the last 300 touch, pointer, click, focus, visual-viewport, connection and error events: the element each
-landed on, what `elementFromPoint` found under the finger (with its pointer-events and z-index), the focused element,
-whether a text field was disabled/read-only and its inputmode, the visual viewport and scroll, display mode,
-`navigator.standalone`, safe areas and the user agent. Never recorded: what is typed or shown (no values or text),
-cookies, tokens, the address's query. A small "diag on" mark shows while it records. Reports go to the bridge every
-20 s while there is something new, when the app goes to the background, and on **Send now**: `POST /api/diag`
-(signed-in device session only, 48 KiB, 6 a minute / 60 an hour per device), sanitized again by the bridge and appended
-as one JSON line each to `~/.local/state/herdr-mobile/diag.jsonl` (0600; moved to `diag.jsonl.1` past 2 MiB).
-
-With Diagnostics on, A/B switches each turn off one mechanism (following the visual viewport, focusing text fields in
-the touch, the edge swipe back, the fixed app frame, view transitions, the terminal keyboard button's re-focus), applied
-after **Reload with these switches**. **Keyboard test page** (`/app/keyboard-test.html`) has plain text fields and no
-app code at all: if the keyboard doesn't come up there either in the home-screen app, the cause is iOS, not the app.
+Settings > Diagnostics > **Record events** keeps the last 300 events on the device: screens visited, connection
+changes, errors and unhandled rejections, taps on buttons and links (by tag and class), the app going to the
+background. Never recorded: what is typed or shown, cookies, tokens, the address's query. **Send to bridge** posts
+them with the build, user agent and display mode to `POST /api/diag` (signed-in device session only, 48 KiB, 6 a
+minute / 60 an hour per device); the bridge sanitizes them again and appends one JSON line each to
+`~/.local/state/herdr-mobile/diag.jsonl` (0600; moved to `diag.jsonl.1` past 2 MiB).
 
 ### Phone notifications (ntfy, off by default)
 

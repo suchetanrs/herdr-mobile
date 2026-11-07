@@ -1,4 +1,4 @@
-// Task 23: on-device diagnostics (POST /api/diag) and the web build id in `welcome`.
+// Diagnostics reports (POST /api/diag) and the web build id in `welcome`.
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -78,7 +78,7 @@ describe('POST /api/diag', () => {
     expect(await post(tb.base, '{"info":{}}', { cookie: 'hm_session=nope' })).toBe(401);
     expect(await post(tb.base, '{"info":{}}', { authorization: `Bearer ${TOKEN}` })).toBe(401);
     expect(fs.existsSync(file)).toBe(false);
-    const body = JSON.stringify({ info: { ua: 'iPhone', token: TOKEN }, events: [{ k: 'touchend', tg: 'textarea', msg: TOKEN }] });
+    const body = JSON.stringify({ info: { ua: 'iPhone', token: TOKEN }, events: [{ k: 'click', tg: 'button', msg: TOKEN }] });
     expect(await post(tb.base, body, { cookie: tb.cookie })).toBe(200);
     const text = fs.readFileSync(file, 'utf8');
     expect(fs.statSync(file).mode & 0o777).toBe(0o600);
@@ -86,7 +86,7 @@ describe('POST /api/diag', () => {
     expect(text).not.toContain(tb.cookie.split('=')[1] as string);
     const line = JSON.parse(text.trim()) as { device: string; report: { info: unknown; events: unknown[] } };
     expect(line.report.info).toEqual({ ua: 'iPhone' });
-    expect(line.report.events).toEqual([{ k: 'touchend', tg: 'textarea', msg: '[redacted]' }]);
+    expect(line.report.events).toEqual([{ k: 'click', tg: 'button', msg: '[redacted]' }]);
     rmDir(dir);
   });
 

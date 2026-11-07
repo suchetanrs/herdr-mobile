@@ -3,8 +3,8 @@ import { DIAG_BODY_LIMIT, type DiagLimiter, type DiagLog, sanitize } from '../di
 import type { Logger } from '../log.js';
 
 /**
- * `POST /api/diag`: a signed-in device's diagnostics report (web lib/diag.ts: its recent touch/focus/connection
- * events), appended to the diagnostics file for debugging on the real phone. Session only (the auth hook of
+ * `POST /api/diag`: a signed-in device's diagnostics report (web lib/diag.ts: its recent navigation, connection,
+ * error and UI events), appended to the diagnostics file. Session only (the auth hook of
  * transport/http.ts already refused anything else; local bearer tools are refused here too), JSON only,
  * DIAG_BODY_LIMIT bytes, rate-limited per device, sanitized again before it's written.
  */

@@ -2,11 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { ServicesContext } from './hooks/app';
-import { applyAbToDocument } from './lib/ab';
 import { createServices } from './lib/app';
 import { forgetStoredToken, signIn, takeTokenFromUrl } from './lib/auth';
 import { watchBuild } from './lib/build';
-import { diagFromUrl, diagStored } from './lib/diag';
+import { diagStored } from './lib/diag';
 import { registerServiceWorker } from './lib/pwa';
 import { setLinkResult } from './screens/TokenScreen';
 import './styles/fonts.css';
@@ -20,11 +19,9 @@ import './styles/desktop.css';
 // once for this device's session cookie; the WebSocket starts after that.
 const linkToken = takeTokenFromUrl();
 forgetStoredToken();
-const diagAsked = diagFromUrl();
-applyAbToDocument();
 const services = createServices();
-// Diagnostics first, so the very first touches and the first connection are on record.
-services.diag.setEnabled(diagAsked ?? diagStored());
+// Diagnostics (Settings), on before the connection starts so its first states are on record.
+services.diag.setEnabled(diagStored());
 watchBuild(services.store);
 if (linkToken) {
   void signIn(linkToken).then((r) => {

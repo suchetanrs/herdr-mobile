@@ -181,6 +181,7 @@
   .sb-agent.sub .sb-agent-name {
     color: var(--muted);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: the .idle variant wins by specificity. */
   .sb-agent-name {
     flex: 1;
     min-width: 0;
@@ -328,6 +329,7 @@
     font-size: 12px;
     background: var(--background);
   }
+  /* biome-ignore lint/style/noDescendingSpecificity: unrelated to .sb-agent.sub .prog (other parent). */
   .pane-head .prog {
     color: var(--dim);
   }

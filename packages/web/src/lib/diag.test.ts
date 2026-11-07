@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { shouldReload } from './build';
-import { DiagRecorder, diagFromUrl, MAX_EVENTS, MAX_REPORT_BYTES, redact, safeLocation, selectorOf } from './diag';
+import { DiagRecorder, MAX_EVENTS, MAX_REPORT_BYTES, redact, safeLocation, selectorOf } from './diag';
 import { AppStore } from './store';
 
 const SECRET = 'hm_Sk3cretTokenValue0123456789abcdefXYZ';
@@ -10,13 +10,6 @@ afterEach(() => {
   document.body.innerHTML = '';
   localStorage.clear();
 });
-
-function touch(type: string, target: Element, x = 10, y = 10) {
-  const e = new Event(type, { bubbles: true, cancelable: true }) as Event & Record<string, unknown>;
-  const t = { identifier: 0, clientX: x, clientY: y, target };
-  Object.assign(e, { touches: type === 'touchend' ? [] : [t], changedTouches: [t] });
-  target.dispatchEvent(e);
-}
 
 describe('diagnostics redaction', () => {
   it('redacts token-like runs and token= values, and caps length', () => {
@@ -27,18 +20,18 @@ describe('diagnostics redaction', () => {
     expect(safeLocation({ pathname: '/', hash: '#/a/t1' })).toBe('/#/a/t1');
   });
 
-  it('selectors name elements without their text, value or placeholder', () => {
+  it('selectors name elements without their text, value, labels or placeholder', () => {
     document.body.innerHTML =
       '<form class="composer"><textarea class="composer-input" aria-label="Message" placeholder="secret placeholder"></textarea></form><button aria-label="Open agent named private">x</button>';
     const ta = document.querySelector('textarea') as HTMLTextAreaElement;
     ta.value = 'my typed secret';
-    expect(selectorOf(ta)).toBe('body>form.composer>textarea.composer-input[Message]');
-    const btn = selectorOf(document.querySelector('button'));
-    expect(btn).not.toContain('private');
+    expect(selectorOf(ta)).toBe('body>form.composer>textarea.composer-input');
+    expect(selectorOf(document.querySelector('button'))).toBe('html>body>button');
   });
 
   it('a report never carries typed text, cookies, tokens or the query', async () => {
-    document.body.innerHTML = '<div class="agent-input-row"><textarea aria-label="Message"></textarea></div>';
+    document.body.innerHTML =
+      '<div class="agent-input-row"><textarea aria-label="Message"></textarea><button class="send"><span>Send private</span></button></div>';
     const ta = document.querySelector('textarea') as HTMLTextAreaElement;
     ta.value = `please type ${SECRET} hunter2-typed`;
     // biome-ignore lint/suspicious/noDocumentCookie: a cookie the report must not carry.
@@ -51,25 +44,25 @@ describe('diagnostics redaction', () => {
       return 200;
     });
     rec.setEnabled(true);
-    touch('touchstart', ta);
-    touch('touchend', ta);
     ta.focus();
     ta.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'x' }));
+    (document.querySelector('button span') as HTMLElement).click();
+    window.history.replaceState(null, '', `/?token=${SECRET}#/a/t1`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
     window.dispatchEvent(new ErrorEvent('error', { message: `boom ${SECRET}`, filename: `http://h/assets/a.js?token=${SECRET}` }));
-    expect(await rec.flush('manual')).toBe('sent');
+    expect(await rec.flush()).toBe('sent');
     const body = bodies[0] ?? '';
     expect(body).not.toContain(SECRET);
     expect(body).not.toContain('hunter2');
     expect(body).not.toContain('please type');
     expect(body).not.toContain('hm_other');
+    expect(body).not.toContain('private');
     const report = JSON.parse(body) as { info: Record<string, unknown>; events: Array<Record<string, unknown>> };
     const kinds = report.events.map((e) => e.k);
-    expect(kinds).toEqual(expect.arrayContaining(['start', 'ws', 'touchstart', 'touchend', 'focusin', 'error']));
-    const end = report.events.find((e) => e.k === 'touchend') as Record<string, unknown>;
-    expect(end.tg).toBe('body>div.agent-input-row>textarea[Message]');
-    expect(end.f).toMatchObject({ dis: false, ro: false, editable: true });
+    expect(kinds).toEqual(['start', 'ws', 'click', 'nav', 'error']);
+    expect(report.events[2]?.tg).toBe('body>div.agent-input-row>button.send');
+    expect(report.events[3]?.loc).toBe('/#/a/t1');
     expect(report.info.build).toBe('dev');
-    expect(report.info.loc).toBe('/#token=[redacted]');
     rec.setEnabled(false);
     window.history.replaceState(null, '', '/');
   });
@@ -81,37 +74,25 @@ describe('diagnostics redaction', () => {
     rec.setEnabled(true);
     for (let i = 0; i < MAX_EVENTS + 50; i++) rec.push('big', { pad: 'p'.repeat(300) });
     expect(rec.count).toBe(MAX_EVENTS);
-    expect(rec.report('t').length).toBeLessThanOrEqual(MAX_REPORT_BYTES);
+    expect(rec.report().length).toBeLessThanOrEqual(MAX_REPORT_BYTES);
     rec.setEnabled(false);
     expect(rec.count).toBe(0);
   });
 
-  it('send results: 429 limited, 401 signed out, a throw failed; auto skips when nothing is new', async () => {
+  it('send results: 429 limited, 401 signed out, a throw failed', async () => {
     const send = vi.fn(async () => 429);
     const rec = new DiagRecorder(null, send);
     rec.setEnabled(true);
-    expect(await rec.flush('manual')).toBe('limited');
+    expect(await rec.flush()).toBe('limited');
     send.mockImplementation(async () => 401);
-    expect(await rec.flush('manual')).toBe('signed-out');
+    expect(await rec.flush()).toBe('signed-out');
     send.mockImplementation(async () => {
       throw new Error('net');
     });
-    expect(await rec.flush('manual')).toBe('failed');
+    expect(await rec.flush()).toBe('failed');
     send.mockImplementation(async () => 200);
-    expect(await rec.flush('manual')).toBe('sent');
-    expect(await rec.flush('auto')).toBe('nothing');
+    expect(await rec.flush()).toBe('sent');
     rec.setEnabled(false);
-  });
-
-  it('#diag turns it on and leaves the address; #diag-off turns it off', () => {
-    window.history.replaceState(null, '', '/#diag&/a/t1');
-    expect(diagFromUrl()).toBe(true);
-    expect(window.location.hash).toBe('#/a/t1');
-    window.history.replaceState(null, '', '/#diag-off');
-    expect(diagFromUrl()).toBe(false);
-    expect(window.location.hash).toBe('');
-    window.history.replaceState(null, '', '/#/a/t1');
-    expect(diagFromUrl()).toBeNull();
   });
 });
 

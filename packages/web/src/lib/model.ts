@@ -89,14 +89,6 @@ export function terminalName(t: TerminalView, world: World): string {
   return numeric(label) ? p.name || label : label;
 }
 
-/** "Space / Tab" for a terminal. */
-export function placeOf(t: TerminalView, world: World): string {
-  const space = t.spaceId ? world.spaces[t.spaceId] : undefined;
-  const tab = t.tabId ? world.tabs[t.tabId] : undefined;
-  if (!space) return t.machine ? `${t.machine} · not in a space` : 'Not in a space';
-  return tab ? `${space.name} / ${tabLabel(tab, world)}` : space.name;
-}
-
 export interface TreeRow {
   t: TerminalView;
   /** 0 for pane terminals, 1+ for sub-agents. */
@@ -201,16 +193,6 @@ export function spaceCounts(world: World, spaceId: string): SpaceCounts {
       c[s]++;
     }
   return c;
-}
-
-/** The agents of a space that want a look, most urgent first: blocked, then unseen done. */
-export function spaceAttention(world: World, spaceId: string): TerminalView[] {
-  return spaceTerminals(world, spaceId)
-    .filter((t) => {
-      const s = shownStatus(t);
-      return s === 'blocked' || s === 'done';
-    })
-    .sort((a, b) => RANK[shownStatus(b) ?? 'idle'] - RANK[shownStatus(a) ?? 'idle']);
 }
 
 /** The space's status as the inbox files it: its rollup, or idle when it runs no agent. */

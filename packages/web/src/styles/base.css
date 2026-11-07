@@ -82,29 +82,6 @@ code {
   background: var(--canvas);
 }
 
-/* Diagnostics A/B (lib/ab.ts staticApp): the frame as a plain block, no fixed position or transform. */
-:root[data-ab~="staticApp"] .app {
-  position: relative;
-  inset: auto;
-  height: 100dvh;
-  transform: none;
-}
-
-/* Diagnostics on: a small mark that never takes a touch. */
-.diag-badge {
-  position: fixed;
-  z-index: 60;
-  top: calc(var(--safe-top) + 2px);
-  left: calc(var(--safe-left) + 6px);
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--blocked-soft);
-  color: var(--blocked);
-  font-size: 10px;
-  font-weight: 600;
-  pointer-events: none;
-}
-
 .spacer {
   flex: 1;
 }
@@ -836,7 +813,9 @@ code {
   .follow-pill,
   ::view-transition-old(root),
   ::view-transition-new(root) {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must beat every component's own timing. */
     animation-duration: 1ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: as above. */
     transition-duration: 1ms !important;
   }
 }
