@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import type { World } from '@herdr-mobile/protocol';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CoreClient } from '../src/core/client.js';
-import { allowLaunches, checkAppRequest, checkCall, markStarted, PolicyError } from '../src/core/policy.js';
+import { allowLaunches, checkAppRequest, checkCall, expectRun, markStarted, PolicyError } from '../src/core/policy.js';
 import type { CoreTerminal } from '../src/core/types.js';
 import { agentArgv, agentChoices, BUILT_IN, InstalledAgents, installedLine, parseInstalled, startable } from '../src/spaces/agents.js';
 import { HerdrApp } from '../src/spaces/app.js';
@@ -29,10 +29,21 @@ const run = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+/** terminal.run as the spaces module sends it: announced first (expectRun), with the same labels and argv. */
+const announced = (p: Record<string, unknown>) => {
+  const l = (p.labels ?? {}) as Record<string, string>;
+  expectRun(String(l['herdr.space']), String(l['herdr.tab']), Array.isArray(p.argv) ? (p.argv as string[]) : []);
+  return p;
+};
+
 describe('policy: new spaces', () => {
-  it('allows terminal.run only in the shape herdr-app spawns', () => {
-    expect(() => checkCall('terminal.run', run())).not.toThrow();
-    expect(() => checkCall('terminal.run', run({ size: { cols: 120, rows: 40 } }))).not.toThrow();
+  it('allows terminal.run only in the shape herdr-app spawns, once per announced run', () => {
+    expect(() => checkCall('terminal.run', run())).toThrow(PolicyError);
+    expect(() => checkCall('terminal.run', announced(run()))).not.toThrow();
+    expect(() => checkCall('terminal.run', run())).toThrow(PolicyError);
+    expect(() => checkCall('terminal.run', announced(run({ size: { cols: 120, rows: 40 } })))).not.toThrow();
+    expectRun(SP, TB, []);
+    expect(() => checkCall('terminal.run', run({ argv: agentArgv('/bin/bash', ['claude']) }))).toThrow(PolicyError);
     const bad: Array<Record<string, unknown>> = [
       run({ keep: false }),
       run({ line: 'rm -rf ~' }),
@@ -51,18 +62,18 @@ describe('policy: new spaces', () => {
       run({ argv: ['rm', '-rf', '/'] }),
       run({ argv: ['bash'] }),
     ];
-    for (const p of bad) expect(() => checkCall('terminal.run', p), JSON.stringify(p)).toThrow(PolicyError);
+    for (const p of bad) expect(() => checkCall('terminal.run', announced(p)), JSON.stringify(p)).toThrow(PolicyError);
   });
 
   it('allows exactly the launches the spaces module offered', () => {
     const claude = agentArgv('/bin/bash', ['claude']);
-    expect(() => checkCall('terminal.run', run({ argv: claude }))).toThrow(PolicyError);
+    expect(() => checkCall('terminal.run', announced(run({ argv: claude })))).toThrow(PolicyError);
     allowLaunches([claude, ['reviewer']]);
-    expect(() => checkCall('terminal.run', run({ argv: claude }))).not.toThrow();
-    expect(() => checkCall('terminal.run', run({ argv: ['reviewer'] }))).not.toThrow();
-    expect(() => checkCall('terminal.run', run({ argv: [...claude, '--dangerously-skip-permissions'] }))).toThrow(PolicyError);
+    expect(() => checkCall('terminal.run', announced(run({ argv: claude })))).not.toThrow();
+    expect(() => checkCall('terminal.run', announced(run({ argv: ['reviewer'] })))).not.toThrow();
+    expect(() => checkCall('terminal.run', announced(run({ argv: [...claude, '--dangerously-skip-permissions'] })))).toThrow(PolicyError);
     allowLaunches([]);
-    expect(() => checkCall('terminal.run', run({ argv: claude }))).toThrow(PolicyError);
+    expect(() => checkCall('terminal.run', announced(run({ argv: claude })))).toThrow(PolicyError);
   });
 
   it('ends and names only what the bridge started', () => {

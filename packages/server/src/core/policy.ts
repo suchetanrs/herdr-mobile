@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { projectDirName } from '../transcripts/claude.js';
+
 /**
  * What the bridge may ask the core. The core socket can do anything (it's the
  * user's own shell), so this is an allowlist of the methods the bridge uses,
@@ -13,7 +17,12 @@
  * `herdr.seen=0`, keep, its env), running the shell, or a launch the spaces module allowed
  * (`allowLaunches`: an installed agent in the interactive shell, or a core template).
  * `terminal.kill`/`terminal.rm` only for terminals the bridge started itself (a space Herdr
- * never adopted is cleaned up). `templates.list` is read only. `terminal.read` only as `{terminal, lines}` (a
+ * never adopted is cleaned up). New tabs in an open space (the + in a space) go the same way, with the
+ * space's own id and a fresh tab id: plain shell, Claude Code as the + menu starts it, or
+ * `claude --resume <uuid>` (optionally `env CLAUDE_CONFIG_DIR=<config>` first) of a session whose
+ * transcript is in that folder's project folder of that config. Every run must have been announced
+ * by the spaces module (`expectRun`: it checked the space exists, or made the id), once.
+ * `templates.list` is read only. `terminal.read` only as `{terminal, lines}` (a
  * full-screen app's history on the person's request, terminal/upstream.ts `appHistory`).
  */
 const ALLOWED_METHODS = new Set([
@@ -43,6 +52,42 @@ export const TAB_ID = /^tb[0-9a-f]{32}$/;
 const launches = new Set<string>();
 const started = new Set<string>();
 const madeSpaces = new Set<string>();
+const madeTabs = new Set<string>();
+/** Runs the spaces module announced, by `<space>/<tab>`: each may happen once. */
+const expected = new Map<string, Expected>();
+let resumeBase: string[] | null = null;
+
+interface Expected {
+  argv: string[];
+  /** A resume: the config folder whose projects must hold the session. */
+  resumeConfig?: string;
+}
+
+/** Claude Code's session ids. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const CONFIG_DIR = /^\/(?:[^\0]+\/)?\.claude(?:-[A-Za-z0-9._-]{1,64})?$/;
+
+/** The next `terminal.run` for this space/tab, with exactly this argv (the spaces module checked the rest). */
+export function expectRun(space: string, tab: string, argv: readonly string[], resumeConfig?: string): void {
+  expected.set(`${space}/${tab}`, { argv: [...argv], ...(resumeConfig ? { resumeConfig } : {}) });
+  if (expected.size > 32) expected.delete(expected.keys().next().value as string);
+}
+
+/** Forgets an announced run that didn't happen. */
+export function unexpectRun(space: string, tab: string): void {
+  expected.delete(`${space}/${tab}`);
+}
+
+/** Claude Code as the + menu starts it (an allowed launch): `--resume <id>` may follow it. */
+export function allowResume(argv: readonly string[] | null): void {
+  resumeBase = argv ? [...argv] : null;
+}
+
+/** A tab the bridge added to an open space: it may end its terminal and name that tab (only those). */
+export function markStartedTab(address: string, tabId: string): void {
+  started.add(address);
+  madeTabs.add(tabId);
+}
 
 /** The exact argv vectors `terminal.run` may start besides the shell (replaces the previous list). */
 export function allowLaunches(argvs: readonly (readonly string[])[]): void {
@@ -111,7 +156,7 @@ export function checkCall(method: string, params: unknown): void {
 
 function checkRun(p: Record<string, unknown>): void {
   const fail = (why: string) => {
-    throw new PolicyError(`herdr-mobile only starts a new space's terminal: ${why}`);
+    throw new PolicyError(`herdr-mobile only starts a new space's or tab's terminal: ${why}`);
   };
   const keys = new Set(['argv', 'cwd', 'env', 'labels', 'keep', 'size']);
   for (const k of Object.keys(p)) if (!keys.has(k)) fail(`no ${k}`);
@@ -130,6 +175,10 @@ function checkRun(p: Record<string, unknown>): void {
   ) {
     fail('new herdr.space/herdr.tab ids and herdr.seen=0 only');
   }
+  const key = `${labels['herdr.space']}/${labels['herdr.tab']}`;
+  const want = expected.get(key);
+  if (!want) fail('a space or tab the bridge is making');
+  expected.delete(key);
   if (typeof p.cwd !== 'string' || !p.cwd.startsWith('/') || p.cwd.includes('\0') || p.cwd.length > 4096) fail('an absolute folder');
   if (p.size !== undefined) {
     const s = p.size as Record<string, unknown>;
@@ -146,7 +195,33 @@ function checkRun(p: Record<string, unknown>): void {
   }
   const argv = p.argv;
   if (!Array.isArray(argv) || !argv.every((a) => typeof a === 'string')) fail('argv strings');
-  if ((argv as string[]).length > 0 && !launches.has(JSON.stringify(argv))) fail('the shell or an offered agent');
+  const a = argv as string[];
+  if (JSON.stringify(a) !== JSON.stringify(want?.argv)) fail('what the bridge announced');
+  if (a.length > 0 && !launches.has(JSON.stringify(a)) && !isResume(a, p.cwd as string, want?.resumeConfig)) {
+    fail('the shell, an offered agent, or resuming a Claude session of that folder');
+  }
+}
+
+/** `<claude as the + menu starts it> --resume <uuid>`, maybe with `env CLAUDE_CONFIG_DIR=<config>` before the program. */
+function isResume(argv: string[], cwd: string, config: string | undefined): boolean {
+  const base = resumeBase;
+  if (!base || base.length < 5 || !config || !CONFIG_DIR.test(config) || path.normalize(config) !== config) return false;
+  const wrapper = base.slice(0, 4);
+  if (JSON.stringify(argv.slice(0, 4)) !== JSON.stringify(wrapper)) return false;
+  let rest = argv.slice(4);
+  if (rest[0] === 'env') {
+    if (rest[1] !== `CLAUDE_CONFIG_DIR=${config}`) return false;
+    rest = rest.slice(2);
+  } else if (path.basename(config) !== '.claude') {
+    return false;
+  }
+  const id = rest.at(-1) ?? '';
+  if (JSON.stringify(rest) !== JSON.stringify([...base.slice(4), '--resume', id]) || !UUID.test(id)) return false;
+  try {
+    return fs.statSync(path.join(config, 'projects', projectDirName(cwd), `${id}.jsonl`)).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -160,6 +235,17 @@ export function checkAppRequest(msg: unknown): void {
   const args = (m.args ?? {}) as Record<string, unknown>;
   if (
     keys === 'args,do' &&
+    m.do === 'tab.rename' &&
+    Object.keys(args).sort().join() === 'id,name' &&
+    typeof args.id === 'string' &&
+    madeTabs.has(args.id) &&
+    typeof args.name === 'string' &&
+    args.name.length <= 64
+  ) {
+    return;
+  }
+  if (
+    keys === 'args,do' &&
     m.do === 'space.rename' &&
     Object.keys(args).sort().join() === 'id,name' &&
     typeof args.id === 'string' &&
@@ -169,5 +255,5 @@ export function checkAppRequest(msg: unknown): void {
   ) {
     return;
   }
-  throw new PolicyError('herdr-mobile only asks Herdr whether it is open and names the spaces it made');
+  throw new PolicyError('herdr-mobile only asks Herdr whether it is open and names the spaces and tabs it made');
 }

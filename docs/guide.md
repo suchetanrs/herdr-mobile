@@ -5,7 +5,8 @@ spaces and their status, the agents and terminals in each space, one agent's liv
 phone, quick keys, one-tap answers), a Conversation tab built from Claude Code transcripts, and in-page alerts when an
 agent needs you or is done. Installable as a PWA on iOS and Android.
 
-It reads from Herdr and types into terminals, and it can make a new space (the one structural thing it does). It
+It reads from Herdr and types into terminals, and it can make a new space or add a tab to one (the only structural
+things it does). It
 never writes Herdr's layout document or `herdr.pinned` (enforced in `packages/server/src/core/policy.ts`), and it
 never resizes a terminal (the phone scales instead:
 readable 11 px text that pans sideways with the cursor by default, "Fit" for the whole grid; see `terminal/zoom.ts`).
@@ -41,6 +42,26 @@ doesn't adopt within 10 s is ended and removed. Folders must exist and lie insid
 or be an existing space's folder; at most 6 new spaces per 10 minutes. Closing it: end its terminal (or close the
 space in Herdr); Herdr then lists it under Recent, as it does for any closed space. Live check:
 `node scripts/check-new-space.mjs` (makes one space on a private bridge, checks it, removes it).
+
+### New tab in a space (+)
+
+A space's **+** (its top bar on a phone; after the tabs on the desktop layout) offers **Terminal** or **Claude
+session**; Claude then offers **New session** or **Resume session**, which lists the Claude Code sessions of the
+space's folder, newest first (title or first prompt, last activity, messages, and the login when there are several).
+A session already running in a terminal Herdr shows says **Open** and opens that terminal; one running elsewhere
+can't be resumed twice. With several Claude logins (`~/.claude`, CLAUDE_CONFIG_DIR folders like `~/.claude-work`,
+even when their `projects` is a symlink to one shared folder), **Resume with** picks the login; by default a session
+resumes with its own (the login whose `.claude.json` names it the folder's last session, else the default one).
+
+How: like New space, but with the space's own `herdr.space` id and a fresh `herdr.tab` id, so the Herdr window adopts
+the terminal as a new tab of that space (as the desktop's + menu `tab.new` does, without switching what the desktop
+shows). The folder is that of the space's first terminal (else the space's). Terminal = the shell; New = Claude Code
+as the + menu starts it (`$SHELL -ic '"$@"; exec "$0" -i' $SHELL claude`, tab named "Claude Code" through the
+window's `tab.rename`); Resume = the same plus `--resume <id>`, with `env CLAUDE_CONFIG_DIR=<login folder>` in front
+for a non-default login. Policy admits only those shapes, only runs the bridge announced for a space it shows, and a
+resume only of a session whose transcript is in that folder's project folder of that login. Transcripts are only
+read. Same limits as New space (one at a time, 6 per 10 minutes). Live check: `node scripts/check-space-plus.mjs
+<folder> <session-id>` (a throwaway space in `<folder>`, all three on iPhone/Pixel/desktop, then removed).
 
 ## Architecture
 

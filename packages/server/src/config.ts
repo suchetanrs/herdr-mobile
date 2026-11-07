@@ -78,6 +78,8 @@ export interface Config {
   webDir: string;
   /** herdr-app's settings folder, read only (space colors). */
   herdrAppDir: string;
+  /** Where ~/.claude and its siblings are, for sessions to resume (HERDR_MOBILE_CLAUDE_HOME; default: home). */
+  claudeHome?: string;
   /** Folders transcripts may also be read from, besides the agents' own (HERDR_MOBILE_TRANSCRIPT_ROOTS, ":"-separated). */
   transcriptRoots?: string[];
   /** Test hook: terminal (address or name) -> transcript (HERDR_MOBILE_TRANSCRIPT_OVERRIDE="hm-x=/abs/file.jsonl,..."). */
@@ -169,6 +171,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     streamGraceMs: int(env.HERDR_MOBILE_STREAM_GRACE_MS, 10_000, 'HERDR_MOBILE_STREAM_GRACE_MS'),
     webDir: env.HERDR_MOBILE_WEB_DIR || fileURLToPath(new URL('../../web/dist', import.meta.url)),
     herdrAppDir: env.HERDR_MOBILE_HERDR_APP_DIR || path.join(xdgConfig, 'herdr-app'),
+    ...(env.HERDR_MOBILE_CLAUDE_HOME && path.isAbsolute(env.HERDR_MOBILE_CLAUDE_HOME) ? { claudeHome: env.HERDR_MOBILE_CLAUDE_HOME } : {}),
     transcriptRoots: (env.HERDR_MOBILE_TRANSCRIPT_ROOTS ?? '').split(':').filter((p) => path.isAbsolute(p)),
     transcriptOverrides: parseOverrides(env.HERDR_MOBILE_TRANSCRIPT_OVERRIDE),
     transcriptPollMs: int(env.HERDR_MOBILE_TRANSCRIPT_POLL_MS, 500, 'HERDR_MOBILE_TRANSCRIPT_POLL_MS'),

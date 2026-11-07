@@ -9,7 +9,7 @@ import {
   type StartChoice,
   type World,
 } from '@herdr-mobile/protocol';
-import { allowLaunches, markStarted, SPAWN_ENV } from '../core/policy.js';
+import { allowLaunches, expectRun, markStarted, SPAWN_ENV, unexpectRun } from '../core/policy.js';
 import { type Logger, silentLogger } from '../log.js';
 import { agentArgv, agentChoices, type InstalledAgents, type Startable, startable } from './agents.js';
 import type { HerdrApp } from './app.js';
@@ -47,13 +47,13 @@ export interface SpaceCreatorOptions {
   now?: () => number;
 }
 
-interface Offer {
+export interface Offer {
   choice: StartChoice;
   argv: string[];
 }
 
 /** herdr-app's fresh ids (model.rs `fresh_id`): prefix + 32 hex digits. */
-const freshId = (prefix: string) => prefix + randomBytes(16).toString('hex');
+export const freshId = (prefix: string) => prefix + randomBytes(16).toString('hex');
 const TEMPLATE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: refusing control characters is the point
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -87,7 +87,7 @@ export class SpaceCreator {
   }
 
   /** The + menu's agents (installed first, two missing ones greyed) and the core's templates. */
-  private async offers(): Promise<Offer[]> {
+  async offers(): Promise<Offer[]> {
     const list: Startable[] = startable(this.opts.herdrAppDir);
     const commands = [...new Set(list.map((s) => s.run[0] as string))];
     const [found, templates] = await Promise.all([this.opts.installed.check(commands), this.templates()]);
@@ -172,11 +172,13 @@ export class SpaceCreator {
     if (size) params.size = size;
     const appearing = this.waitForSpace(spaceId);
     let address: string;
+    expectRun(spaceId, tabId, argv);
     try {
       const r = await this.opts.core.call<{ address?: string }>('terminal.run', params, 15_000);
       if (typeof r.address !== 'string') throw new Error('no address');
       address = r.address;
     } catch (e) {
+      unexpectRun(spaceId, tabId);
       appearing.cancel();
       this.log.warn({ err: (e as Error).message }, 'new space: terminal.run failed');
       throw new CreateError(`Couldn’t start a terminal there: ${(e as Error).message}`, 502);

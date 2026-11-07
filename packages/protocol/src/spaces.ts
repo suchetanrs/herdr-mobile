@@ -63,3 +63,72 @@ export interface NewSpaceError {
 
 export const SPACE_NAME_MAX = 64;
 export const FOLDER_MAX = 1024;
+
+/*
+ * A new tab in an open space (REST: GET /api/spaces/:id/sessions, POST /api/spaces/:id/tabs), the
+ * way the desktop's + menu adds one: a terminal labeled with the space's id and a fresh tab id, which
+ * Herdr adopts into that space.
+ */
+
+/** What the new tab runs: the shell, Claude Code (new), or `claude --resume <session>`. */
+export type NewTabStart =
+  | { kind: 'shell' }
+  | { kind: 'claude' }
+  /** `config`: the Claude config folder to resume with (`ClaudeConfigChoice.id`); absent: the session's own. */
+  | { kind: 'resume'; session: string; config?: string };
+
+export interface NewTabRequest {
+  start: NewTabStart;
+}
+
+export interface NewTabResult {
+  spaceId: string;
+  tabId: string;
+  terminalId: string;
+}
+
+/** A Claude config folder (`~/.claude`, or a CLAUDE_CONFIG_DIR like `~/.claude-work`) and its login. */
+export interface ClaudeConfigChoice {
+  /** The folder's name (".claude", ".claude-work"): what a resume request names. */
+  id: string;
+  /** For people: the login ("alice · max"), else the folder ("~/.claude-work"). */
+  label: string;
+  /** The default one (`claude` without CLAUDE_CONFIG_DIR). */
+  isDefault: boolean;
+}
+
+export interface ResumableSession {
+  /** Claude Code's session id (a UUID). */
+  id: string;
+  /** Its title (/rename, or Claude's own summary), if it has one. */
+  title: string | null;
+  /** The first thing typed into it, one line, clipped. */
+  prompt: string;
+  /** Last activity, ms since the epoch. */
+  modifiedMs: number;
+  /** Prompts and replies in it. */
+  messages: number;
+  /** The config folder it belongs to (`ClaudeConfigChoice.id`). */
+  config: string;
+  /** Running in this terminal now: open that instead of resuming it. */
+  openIn: string | null;
+  /** Running somewhere Herdr doesn't show (it can't be resumed twice). */
+  runningElsewhere: boolean;
+}
+
+export interface SpaceSessions {
+  /** Where the new tab starts (the folder of the space's first terminal, else the space's). */
+  folder: string;
+  /** `folder` as `~/...`. */
+  display: string;
+  /** Herdr desktop is open (it adopts the tab). */
+  appOpen: boolean;
+  /** Claude Code is installed (the + menu's check). */
+  claudeInstalled: boolean;
+  /** The config folders that can resume these sessions (more than one: they share transcripts). */
+  configs: ClaudeConfigChoice[];
+  /** Newest first. */
+  sessions: ResumableSession[];
+}
+
+export const SESSIONS_MAX = 60;

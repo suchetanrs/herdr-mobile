@@ -549,6 +549,46 @@ test('new space: folders, completion and Herdr’s agents; a bad folder is refus
   expect(runsAfter).toBe(runsBefore);
 });
 
+test('space +: Terminal | Claude session, then New | Resume and the folder’s sessions; refused requests start nothing', async ({
+  page,
+  request,
+}) => {
+  // Read only: a real local space is opened and its + menu looked at; nothing in it is tapped to start.
+  const startedBefore = fs.existsSync(LOG_FILE) ? (fs.readFileSync(LOG_FILE, 'utf8').match(/new tab started/g) ?? []).length : 0;
+  const world = (await (await request.get(`${E2E_URL}/api/world`, { headers: auth })).json()).world;
+  const spaceId = (world.spaceOrder as string[]).find((id) => world.spaces[id].machine === null && /^sp[0-9a-f]{32}$/.test(id));
+  test.skip(!spaceId, 'no local space open');
+  await page.goto(link(`#/s/${spaceId}`));
+  await page.getByRole('button', { name: 'New tab' }).click();
+  const menu = page.getByRole('dialog', { name: 'New tab' });
+  await expect(menu.getByRole('button', { name: /^Terminal/ })).toBeVisible();
+  await expect(menu.getByText(/^A shell in /)).toBeVisible();
+  await menu.getByRole('button', { name: /Claude session/ }).click();
+  const claude = page.getByRole('dialog', { name: 'Claude session' });
+  await expect(claude.getByRole('button', { name: /New session/ })).toBeVisible();
+  await expect(claude.getByRole('button', { name: /Resume session/ })).toContainText(/in this folder|None in this folder/);
+  await claude.getByRole('button', { name: /Resume session/ }).click();
+  const list = page.getByRole('dialog', { name: 'Resume a session' });
+  await expect(list.locator('.add-session, .add-empty').first()).toBeVisible();
+  await list.getByRole('button', { name: 'Back' }).click();
+  await expect(page.getByRole('dialog', { name: 'Claude session' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const listing = await request.get(`${E2E_URL}/api/spaces/${spaceId}/sessions`, { headers: auth });
+  expect(listing.status()).toBe(200);
+  const sessions = (await listing.json()) as { folder: string; sessions: Array<{ id: string }> };
+  expect(sessions.folder.startsWith('/')).toBe(true);
+  for (const s of sessions.sessions) expect(s.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  const post = (space: string, start: unknown) =>
+    request.post(`${E2E_URL}/api/spaces/${space}/tabs`, { headers: { ...auth, 'content-type': 'application/json' }, data: { start } });
+  expect((await post(`sp${'0'.repeat(32)}`, { kind: 'shell' })).status()).toBe(404);
+  expect((await post(spaceId as string, { kind: 'resume', session: 'not-a-session' })).status()).toBe(400);
+  expect((await post(spaceId as string, { kind: 'resume', session: '00000000-0000-4000-8000-000000000000' })).status()).toBe(400);
+  expect((await post(spaceId as string, { kind: 'exec', argv: ['true'] })).status()).toBe(400);
+  const startedAfter = fs.existsSync(LOG_FILE) ? (fs.readFileSync(LOG_FILE, 'utf8').match(/new tab started/g) ?? []).length : 0;
+  expect(startedAfter).toBe(startedBefore);
+});
+
 test('reconnects after the bridge restarts', async ({ page }) => {
   test.setTimeout(60_000);
   let sockets = 0;

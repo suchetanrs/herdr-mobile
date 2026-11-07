@@ -1,5 +1,6 @@
 import type { TabView, TerminalView, World } from '@herdr-mobile/protocol';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { AddButton, AddToSpace } from '../components/AddToSpace';
 import { AgentRow } from '../components/AgentRow';
 import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
@@ -61,6 +62,7 @@ export function SpaceScreen({ spaceId, embedded = false }: { spaceId: string; em
   const groups = useMemo(() => spaceTabs(world, spaceId), [world, spaceId]);
   const sections = useRef(new Map<string, HTMLElement>());
   const stripGuard = useTapGuard<HTMLElement>();
+  const [adding, setAdding] = useState(false);
 
   if (!space) {
     return (
@@ -113,7 +115,7 @@ export function SpaceScreen({ spaceId, embedded = false }: { spaceId: string; em
         <div className="state-card">
           <Icon name="terminal" size={22} />
           <h3>No terminals here</h3>
-          <p>Open a tab in this space on the desktop.</p>
+          <p>{space.machine === null ? 'Open a tab with the + above, or on the desktop.' : 'Open a tab in this space on the desktop.'}</p>
         </div>
       )}
       {blocks.map((b, bi) =>
@@ -184,11 +186,13 @@ export function SpaceScreen({ spaceId, embedded = false }: { spaceId: string; em
           </span>
           <span className="spacer" />
           <StatusGlyph status={space.status} />
+          {space.machine === null && <AddButton onClick={() => setAdding(true)} />}
           <AlertsButton />
         </header>
       }
     >
       {body}
+      {adding && <AddToSpace spaceId={space.id} onClose={() => setAdding(false)} />}
     </Screen>
   );
 }

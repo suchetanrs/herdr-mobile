@@ -1,5 +1,6 @@
 import type { TerminalView, World } from '@herdr-mobile/protocol';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { AddButton, AddToSpace } from '../components/AddToSpace';
 import { TreeLines } from '../components/AgentRow';
 import { ConnectionDot, HerdrMark, ReconnectBanner } from '../components/Chrome';
 import { Icon } from '../components/Icon';
@@ -162,6 +163,7 @@ export function Desktop({ route }: { route: Route }) {
   const activeSpace = route.name === 'space' ? route.spaceId : agent ? spaceIdOf(agent) : null;
   const space = activeSpace ? spaceOf(world, activeSpace) : null;
   const tabs = activeSpace ? spaceTabs(world, activeSpace) : [];
+  const [adding, setAdding] = useState<string | null>(null);
   return (
     <div className="desktop">
       <aside className="sidebar">
@@ -223,7 +225,11 @@ export function Desktop({ route }: { route: Route }) {
                       : 'All spaces'}
             </span>
           )}
+          {space && space.machine === null && (route.name === 'space' || route.name === 'agent') && (
+            <AddButton className="icon-btn sm" onClick={() => setAdding(space.id)} />
+          )}
         </div>
+        {adding && <AddToSpace spaceId={adding} onClose={() => setAdding(null)} />}
         <ReconnectBanner />
         <div className="main-body">
           {route.name === 'agent' ? (

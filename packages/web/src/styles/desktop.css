@@ -258,6 +258,25 @@
   .tab-row .tab-pill.active {
     border-color: var(--border);
   }
+  .tabbar .add-btn {
+    flex: none;
+    width: 29px;
+    height: 29px;
+    margin-left: 4px;
+    border-radius: 7px;
+  }
+  .sheet.add-sheet {
+    width: 380px;
+    height: auto;
+    max-height: min(82vh, 640px);
+  }
+  .add-row,
+  .add-session {
+    min-height: 40px;
+  }
+  .add-row-text {
+    font-size: 12.8px;
+  }
   .tabbar-title {
     padding: 0 6px;
     font-size: 12.8px;

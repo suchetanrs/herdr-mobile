@@ -805,3 +805,170 @@
 .device-this {
   color: var(--dim);
 }
+
+/* The + of a space: Herdr's + menu as a sheet (bottom on a phone, a small dialog on a desktop). */
+.add-btn {
+  color: var(--muted);
+}
+.sheet.add-sheet {
+  height: auto;
+  max-height: calc(var(--vvh, 100dvh) - var(--safe-top) - 40px);
+}
+.add-head {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 4px;
+}
+.add-folder {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.add-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px calc(6px + var(--safe-right)) calc(10px + var(--safe-bottom)) calc(6px + var(--safe-left));
+  -webkit-overflow-scrolling: touch;
+}
+.add-row,
+.add-session {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  text-align: left;
+  color: var(--foreground);
+  transition: background 120ms;
+}
+.add-row:hover:not(:disabled),
+.add-row:active:not(:disabled),
+.add-session:hover:not(:disabled),
+.add-session:active:not(:disabled) {
+  background: var(--hover);
+}
+.add-row:disabled,
+.add-session:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+.add-row[aria-busy="true"],
+.add-session[aria-busy="true"] {
+  background: var(--selected);
+  color: var(--foreground);
+}
+.add-row-icon {
+  flex: none;
+  width: 20px;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--muted);
+}
+.add-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.add-hint {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.add-more {
+  color: var(--dim);
+  flex: none;
+}
+.add-session {
+  align-items: flex-start;
+  padding: 9px 10px;
+}
+.add-session-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.add-session + .add-session {
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+.add-badge {
+  flex: none;
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  background: var(--working-soft);
+  color: var(--foreground);
+}
+.add-badge.dim {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+}
+.add-accounts {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.add-accounts-label {
+  padding: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+.add-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.add-chip {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--canvas);
+  color: var(--muted);
+  font-size: 13px;
+}
+.add-chip.on {
+  background: var(--selected);
+  color: var(--foreground);
+  border-color: var(--accent);
+}
+.add-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 10px;
+  color: var(--dim);
+  font-size: 14px;
+}
+.add-error {
+  margin: 8px 10px 2px;
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.add-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px calc(16px + var(--safe-right)) 8px calc(16px + var(--safe-left));
+  background: var(--working-soft);
+  font-size: var(--fs-sm);
+}

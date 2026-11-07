@@ -526,12 +526,26 @@ class ClaudeParser implements TranscriptParser {
 }
 
 /** Claude Code names the project folder after the cwd with every non-alphanumeric character as "-". */
+/**
+ * A transcript entry that is something a person typed: a prompt, or a slash command. Null for
+ * everything else (tool results, subagents' entries, meta and compact summaries, outputs).
+ */
+export function typedText(entry: unknown): { kind: 'prompt' | 'command'; text: string } | null {
+  if (!isObj(entry) || entry.type !== 'user' || entry.isSidechain === true || entry.isMeta === true || entry.isCompactSummary === true)
+    return null;
+  const msg = isObj(entry.message) ? entry.message : null;
+  if (!msg) return null;
+  if (Array.isArray(msg.content) && msg.content.some((b) => isObj(b) && b.type === 'tool_result')) return null;
+  const t = classifyText(blockText(msg.content).text);
+  return t.kind === 'prompt' || t.kind === 'command' ? { kind: t.kind, text: t.text } : null;
+}
+
 export function projectDirName(cwd: string): string {
   return cwd.replace(/[^a-zA-Z0-9]/g, '-');
 }
 
 /** ~/.claude and its siblings (~/.claude-work, ...: CLAUDE_CONFIG_DIR setups). */
-function configDirs(home: string): string[] {
+export function configDirs(home: string): string[] {
   let names: string[] = [];
   try {
     names = fs.readdirSync(home);

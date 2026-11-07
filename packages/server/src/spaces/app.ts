@@ -5,7 +5,7 @@ import { checkAppRequest } from '../core/policy.js';
 /**
  * The Herdr window's control socket (`$HERDR_APP_HOME/herdr-app.sock`, control.rs: one JSON line
  * each way), the channel `herdr-app status` / `herdr-app do` use. Only what policy.ts
- * `checkAppRequest` allows: is the window open, and naming a space the bridge made.
+ * `checkAppRequest` allows: is the window open, and naming a space or tab the bridge made.
  */
 export class HerdrApp {
   readonly socketPath: string;
@@ -29,6 +29,11 @@ export class HerdrApp {
 
   async renameSpace(id: string, name: string): Promise<void> {
     const r = (await this.request({ do: 'space.rename', args: { id, name } })) as { error?: unknown } | null;
+    if (r && typeof r === 'object' && r.error) throw new Error(String(r.error));
+  }
+
+  async renameTab(id: string, name: string): Promise<void> {
+    const r = (await this.request({ do: 'tab.rename', args: { id, name } })) as { error?: unknown } | null;
     if (r && typeof r === 'object' && r.error) throw new Error(String(r.error));
   }
 

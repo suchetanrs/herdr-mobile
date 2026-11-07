@@ -16,6 +16,8 @@ import { SeenSync } from './seen/sync.js';
 import { InstalledAgents, userShell } from './spaces/agents.js';
 import { HerdrApp } from './spaces/app.js';
 import { SpaceCreator } from './spaces/create.js';
+import { ClaudeSessions } from './spaces/sessions.js';
+import { TabCreator } from './spaces/tabs.js';
 import { TerminalHub } from './terminal/hub.js';
 import { ConversationHub } from './transcripts/hub.js';
 import { TranscriptLocator } from './transcripts/locate.js';
@@ -264,17 +266,27 @@ export function createBridge(config: Config): Bridge {
     ...(limiter ? { limiter } : {}),
   });
   const shell = userShell();
+  const herdrApp = new HerdrApp(config.herdrAppDir);
   const creator = new SpaceCreator({
     core: client,
     store,
-    app: new HerdrApp(config.herdrAppDir),
+    app: herdrApp,
     installed: config.installedAgents ?? new InstalledAgents(shell),
     home: config.home,
     herdrAppDir: config.herdrAppDir,
     shell,
     logger,
   });
-  registerSpaceRoutes(http, { creator, home: config.home });
+  const tabs = new TabCreator({
+    core: client,
+    store,
+    app: herdrApp,
+    offers: () => creator.offers(),
+    sessions: new ClaudeSessions({ home: config.claudeHome ?? config.home, coreSocket: config.socketPath }),
+    home: config.home,
+    logger,
+  });
+  registerSpaceRoutes(http, { creator, tabs, home: config.home });
   registerStatic(http, config.webDir);
   ws.attach(http.server);
 
