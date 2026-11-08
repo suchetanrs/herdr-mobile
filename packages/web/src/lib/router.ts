@@ -4,6 +4,8 @@ export type Route =
   | { name: 'alerts' }
   | { name: 'settings' }
   | { name: 'new' }
+  /** The file browser (its folder is remembered on the device, not in the address). */
+  | { name: 'files' }
   | { name: 'space'; spaceId: string }
   /** No `view`: the agent's remembered tab, else Conversation when it has a transcript. */
   | { name: 'agent'; terminalId: string; view?: 'terminal' | 'conversation' };
@@ -19,6 +21,7 @@ export function parseRoute(hash: string): Route {
   if (head === 'alerts') return { name: 'alerts' };
   if (head === 'settings') return { name: 'settings' };
   if (head === 'new') return { name: 'new' };
+  if (head === 'files') return { name: 'files' };
   return { name: 'spaces' };
 }
 
@@ -32,6 +35,8 @@ export function routeHash(r: Route): string {
       return '#/settings';
     case 'new':
       return '#/new';
+    case 'files':
+      return '#/files';
     case 'space':
       return `#/s/${encodeURIComponent(r.spaceId)}`;
     case 'agent':

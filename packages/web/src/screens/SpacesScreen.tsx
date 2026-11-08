@@ -5,7 +5,7 @@ import { ConnectionDot, HerdrMark } from '../components/Chrome';
 import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
 import { PromptProbe } from '../components/PromptProbe';
-import { AlertsButton, Screen, SettingsButton } from '../components/Screen';
+import { AlertsButton, FilesButton, Screen, SettingsButton } from '../components/Screen';
 import { SpaceTile } from '../components/SpaceTile';
 import { StatusGlyph } from '../components/Status';
 import { useDrafts, useLive, useNow, useServices, useWorld } from '../hooks/app';
@@ -321,6 +321,7 @@ export function SpacesScreen({ embedded = false }: { embedded?: boolean }) {
           <span className="topbar-title">Herdr</span>
           <ConnectionDot withLabel />
           <span className="spacer" />
+          <FilesButton />
           <button type="button" className="icon-btn" onClick={() => navigate({ name: 'new' })} aria-label="New space">
             <Icon name="plus" size={19} />
           </button>

@@ -9,6 +9,7 @@ import { back, depth, parseRoute, type Route } from './lib/router';
 import { AgentScreen } from './screens/AgentScreen';
 import { AlertsScreen } from './screens/AlertsScreen';
 import { Desktop } from './screens/Desktop';
+import { FilesScreen } from './screens/FilesScreen';
 import { NewSpaceScreen } from './screens/NewSpaceScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SpaceScreen } from './screens/SpaceScreen';
@@ -68,6 +69,8 @@ function MobileScreen({ route }: { route: Route }) {
       return <SettingsScreen />;
     case 'new':
       return <NewSpaceScreen />;
+    case 'files':
+      return <FilesScreen />;
     case 'space':
       return <SpaceScreen spaceId={route.spaceId} />;
     case 'agent':

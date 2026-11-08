@@ -1,5 +1,6 @@
 export * from './attention.js';
 export * from './conversation.js';
+export * from './files.js';
 export * from './history.js';
 export * from './messages.js';
 export * from './patch.js';

@@ -159,6 +159,47 @@ function rawHeadersOk(raw, label) {
   check(!/fastify|fst_/i.test(raw), `${label}: doesn't name the framework`);
 }
 
+/** The file browser with a session: works, but never shows or sends the bridge's own secrets, and no /proc. */
+async function fileChecks(get, cookie, T) {
+  const q = encodeURIComponent;
+  const secrets = path.join(os.homedir(), '.config/herdr-mobile');
+  const home = await get('/api/fs/list?path=~', { headers: { cookie } });
+  check(home.status === 200 && home.body.includes('"kind":"dir"'), T('with the session: /api/fs/list of ~ 200'), `HTTP ${home.status}`);
+  const conf = await get(`/api/fs/list?hidden=1&path=${q('~/.config')}`, { headers: { cookie } });
+  check(conf.status !== 200 || !conf.body.includes('"name":"herdr-mobile"'), T("~/.config listing leaves the bridge's secrets folder out"));
+  for (const p of [secrets, '~/.config/herdr-mobile', '~/.config/herdr-mobile/', '~/.config/./herdr-mobile/../herdr-mobile']) {
+    const r = await get(`/api/fs/list?path=${q(p)}`, { headers: { cookie } });
+    check(r.status === 403, T(`with the session: list ${p}: 403`), `HTTP ${r.status}`);
+  }
+  for (const f of ['token', 'sessions.json', 'env']) {
+    const r = await get(`/api/fs/download?path=${q(path.join(secrets, f))}`, { headers: { cookie } });
+    check(
+      r.status === 403 && (!token || !r.body.includes(token)),
+      T(`with the session: download ~/.config/herdr-mobile/${f}: 403`),
+      `HTTP ${r.status}`,
+    );
+  }
+  for (const p of ['/proc/self/environ', `/proc/${'self'}/cmdline`, '/dev/zero']) {
+    const r = await get(`/api/fs/download?path=${q(p)}`, { headers: { cookie } });
+    check(r.status === 400 && (!token || !r.body.includes(token)), T(`with the session: download ${p}: 400`), `HTTP ${r.status}`);
+  }
+  const cross = await get('/api/fs/list?path=~', { headers: { cookie, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'cors' } });
+  check(cross.status === 403, T('with the session: cross-site /api/fs/list: 403'), `HTTP ${cross.status}`);
+  const crossDl = await get('/api/fs/download?path=%2Fetc%2Fhostname', {
+    headers: { cookie, 'sec-fetch-site': 'same-site', 'sec-fetch-mode': 'navigate' },
+  });
+  check(crossDl.status === 403, T('with the session: same-site (other port) download: 403'), `HTTP ${crossDl.status}`);
+  const host = await get('/api/fs/download?path=%2Fetc%2Fhostname', { headers: { cookie } });
+  check(
+    host.status === 200 &&
+      host.headers['content-type'] === 'application/octet-stream' &&
+      /^attachment; filename="hostname"; filename\*=UTF-8''hostname$/.test(String(host.headers['content-disposition'])) &&
+      host.headers['x-content-type-options'] === 'nosniff',
+    T('with the session: download /etc/hostname as an attachment (octet-stream, nosniff)'),
+    `HTTP ${host.status} ${host.headers['content-type']}`,
+  );
+}
+
 async function probe(base) {
   const u = new URL(base);
   const loop = isLoopback(u.hostname);
@@ -235,6 +276,9 @@ async function probe(base) {
     ],
     ['/api/sessions', { method: 'DELETE' }],
     ['/api/diag', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"info":{}}' }],
+    ['/api/fs/list?path=~', {}],
+    ['/api/fs/list?path=%2F', {}],
+    ['/api/fs/download?path=%2Fetc%2Fhostname', {}],
     ['/api/nope', {}],
   ]) {
     const r = await get(p, o);
@@ -279,6 +323,10 @@ async function probe(base) {
     (await get('/api/world', { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'no-cors' } })).status === 403,
     T('cross-site API request: 403'),
   );
+  for (const p of ['/api/fs/list?path=~', '/api/fs/download?path=%2Fetc%2Fhostname']) {
+    const r = await get(p, { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } });
+    check(r.status === 403, T(`cross-site ${p.split('?')[0]}: 403`), `HTTP ${r.status}`);
+  }
   for (let i = 0; i < 3; i++) {
     const r = await get('/api/session', {
       method: 'POST',
@@ -353,6 +401,7 @@ async function probe(base) {
       const full = await get('/api/health', { headers: { cookie } });
       check(full.body.includes('"core"'), T('with the session: full health'));
       check((await wsTry(base, '/ws', { cookie })).status === 101, T('with the session: WebSocket 101'));
+      await fileChecks(get, cookie, T);
       const out = await get('/api/session', { method: 'DELETE', headers: { cookie } });
       check(out.status === 200, T('signed out again'));
       check((await get('/api/world', { headers: { cookie } })).status === 401, T('the signed-out session no longer works'));

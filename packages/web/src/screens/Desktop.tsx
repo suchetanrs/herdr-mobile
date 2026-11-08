@@ -5,7 +5,7 @@ import { TreeLines } from '../components/AgentRow';
 import { ConnectionDot, HerdrMark, ReconnectBanner } from '../components/Chrome';
 import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
-import { AlertsButton } from '../components/Screen';
+import { AlertsButton, FilesButton } from '../components/Screen';
 import { SpaceTile } from '../components/SpaceTile';
 import { StatusGlyph } from '../components/Status';
 import { useNow, useWorld } from '../hooks/app';
@@ -30,6 +30,7 @@ import { navigate, type Route } from '../lib/router';
 import { AgentScreen } from './AgentScreen';
 import { AlertsScreen } from './AlertsScreen';
 import { SpacesScreen, TabPillRow } from './DesktopParts';
+import { FilesScreen } from './FilesScreen';
 import { NewSpaceScreen } from './NewSpaceScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { SpaceScreen } from './SpaceScreen';
@@ -172,6 +173,7 @@ export function Desktop({ route }: { route: Route }) {
           <span className="sb-title">Herdr</span>
           <span className="spacer" />
           <ConnectionDot />
+          <FilesButton size={16} />
           <AlertsButton />
         </div>
         <div className="sb-label">
@@ -220,9 +222,11 @@ export function Desktop({ route }: { route: Route }) {
                   ? 'Settings'
                   : route.name === 'new'
                     ? 'New space'
-                    : space
-                      ? space.name
-                      : 'All spaces'}
+                    : route.name === 'files'
+                      ? 'Files'
+                      : space
+                        ? space.name
+                        : 'All spaces'}
             </span>
           )}
           {space && space.machine === null && (route.name === 'space' || route.name === 'agent') && (
@@ -242,6 +246,8 @@ export function Desktop({ route }: { route: Route }) {
             <SettingsScreen embedded />
           ) : route.name === 'new' ? (
             <NewSpaceScreen embedded />
+          ) : route.name === 'files' ? (
+            <FilesScreen embedded />
           ) : (
             <SpacesScreen embedded />
           )}

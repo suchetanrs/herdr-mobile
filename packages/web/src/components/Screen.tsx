@@ -23,6 +23,15 @@ export function BackButton({ onClick, label = 'Back' }: { onClick: () => void; l
   );
 }
 
+/** The computer's files: browse and download. */
+export function FilesButton({ className = 'icon-btn', size = 18 }: { className?: string; size?: number }) {
+  return (
+    <button type="button" className={className} onClick={() => navigate({ name: 'files' })} aria-label="Files" title="Files">
+      <Icon name="folder" size={size} />
+    </button>
+  );
+}
+
 /** Settings (alerts, theme, text sizes, how agents open). */
 export function SettingsButton() {
   return (

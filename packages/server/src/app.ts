@@ -9,6 +9,7 @@ import { stripToken, TokenSource } from './auth/token.js';
 import { type Config, DEFAULT_LIMITS } from './config.js';
 import { CoreClient } from './core/client.js';
 import { DiagLimiter, DiagLog } from './diag/log.js';
+import { FileBrowser } from './files/browse.js';
 import { Health } from './health.js';
 import type { Logger } from './log.js';
 import { InPageSink } from './notify/inpage.js';
@@ -25,6 +26,7 @@ import { ConversationHub } from './transcripts/hub.js';
 import { TranscriptLocator } from './transcripts/locate.js';
 import { ConversationSession } from './transport/conversation.js';
 import { registerDiagRoutes } from './transport/diag.js';
+import { registerFileRoutes } from './transport/files.js';
 import { HostCheck } from './transport/guard.js';
 import { frameworkError, registerHttp } from './transport/http.js';
 import { ConnectionGate, isLoopback, NetworkListeners, peerMatcher } from './transport/listen.js';
@@ -292,8 +294,18 @@ export function createBridge(config: Config): Bridge {
     logger,
   });
   registerSpaceRoutes(http, { creator, tabs, home: config.home });
+  const diagFile = config.diagFile ?? path.join(config.configDir, 'diag.jsonl');
+  registerFileRoutes(http, {
+    browser: new FileBrowser({
+      home: config.home,
+      // The bridge's own config (token, sessions, env) wherever it is, and the default place too.
+      privateDirs: [config.configDir, path.join(config.home, '.config', 'herdr-mobile')],
+      privateFiles: [diagFile],
+    }),
+    logger,
+  });
   registerDiagRoutes(http, {
-    log: new DiagLog(config.diagFile ?? path.join(config.configDir, 'diag.jsonl')),
+    log: new DiagLog(diagFile),
     limiter: new DiagLimiter(),
     build: webBuild,
     logger,

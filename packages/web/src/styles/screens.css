@@ -790,6 +790,190 @@
   margin-top: 12px;
 }
 
+/* ---- files ---- */
+.fs-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.fs-bar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px calc(10px + var(--safe-right)) 6px calc(10px + var(--safe-left));
+  border-bottom: 1px solid var(--border);
+}
+.fs-path {
+  display: flex;
+  gap: 8px;
+}
+.fs-path .field {
+  flex: 1;
+  min-width: 0;
+  height: var(--touch);
+  padding: 0 12px;
+}
+.fs-path .field input {
+  font-size: 16px; /* 16px: iOS doesn't zoom into the field */
+}
+.fs-go {
+  min-width: 56px;
+}
+.fs-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.fs-tools .icon-btn.sm {
+  width: var(--touch);
+  height: var(--touch);
+}
+.fs-tools .icon-btn:disabled {
+  opacity: 0.35;
+}
+.fs-crumbs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+.fs-crumbs::-webkit-scrollbar {
+  display: none;
+}
+.fs-crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+.fs-crumb {
+  min-height: var(--touch);
+  padding: 0 7px;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--muted);
+}
+.fs-crumb:hover,
+.fs-crumb:active {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.fs-crumb.on {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.fs-sep {
+  color: var(--dim);
+  flex: none;
+}
+.fs-hidden {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--touch);
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.fs-hidden.on {
+  background: var(--selected);
+  color: var(--foreground);
+}
+.fs-list.loading .fs-entries {
+  opacity: 0.6;
+}
+.fs-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 9px;
+  text-align: left;
+  color: var(--foreground);
+  text-decoration: none;
+  transition: background 120ms;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
+}
+.fs-row:hover,
+.fs-row:active {
+  background: var(--hover);
+}
+.fs-icon {
+  flex: none;
+  color: var(--dim);
+}
+.fs-icon.fs-dir {
+  color: var(--accent);
+}
+.fs-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fs-name {
+  font-size: 14.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fs-meta {
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.fs-dl {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--accent);
+  background: var(--hover);
+}
+.fs-other {
+  color: var(--muted);
+}
+.fs-more {
+  display: flex;
+  margin: 4px auto 0;
+}
+.fs-foot {
+  margin: 10px 4px 0;
+  text-align: center;
+  font-size: var(--fs-xs);
+  color: var(--dim);
+}
+.fs-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 4px 4px 4px 12px;
+  min-height: var(--touch);
+  border-radius: 10px;
+  background: var(--done-soft);
+  font-size: var(--fs-sm);
+}
+.fs-notice-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 640px) {
   .scroll > * {
     max-width: 720px;
@@ -977,4 +1161,13 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+  .fs-bar > * {
+    width: 100%;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }

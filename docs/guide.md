@@ -63,6 +63,24 @@ resume only of a session whose transcript is in that folder's project folder of 
 read. Same limits as New space (one at a time, 6 per 10 minutes). Live check: `node scripts/check-space-plus.mjs
 <folder> <session-id>` (a throwaway space in `<folder>`, all three on iPhone/Pixel/desktop, then removed).
 
+### Files
+
+The folder icon at the top of the spaces list (the sidebar's top on the desktop layout) opens the computer's files,
+read only, as the bridge's user. It starts in the folder shown last on that device (else the home folder). Type or
+paste a path in the bar (`~`, `~/x`, `/abs/path`, or relative to the folder shown; Tab completes, Enter opens): a
+folder opens, a file downloads at once. Tap the path's parts (from `/`) to go back up, or the up arrow / home icon.
+Folders come first; tap a folder to open it, a file to download it. Hidden files (`.name`) show only with **Hidden**
+on (remembered). Folders with more than 500 entries load 500 at a time (**Show more**).
+
+How: `GET /api/fs/list?path=&hidden=1&offset=` and `GET /api/fs/download?path=` (session + cross-site guard like the
+rest of the API). Paths are resolved with realpath first. The bridge's own folder (`~/.config/herdr-mobile` and
+`HERDR_MOBILE_CONFIG_DIR`: token, sessions, env) and the diagnostics file are never listed or sent, whatever the path,
+symlink or hard link. Only regular files are sent, never devices, sockets, pipes or anything in /proc, /sys or /dev
+(they're listed only). Downloads are `Content-Disposition: attachment` (UTF-8 name), `application/octet-stream`,
+`nosniff`, with `Content-Length` and one `Range`; each is logged with its path (never its content). Limits per device:
+240 listings a minute, 120 downloads per 10 minutes, 4 at once (8 for all devices); 20 000 entries read per folder.
+Nothing is ever written, moved or deleted.
+
 ## Architecture
 
 ```mermaid
