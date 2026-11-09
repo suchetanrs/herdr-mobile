@@ -64,6 +64,8 @@ export interface WorldStoreOptions {
   transcriptOf?: (t: CoreTerminal) => string | null;
   /** See DeriveInput.accountOf. */
   accountOf?: (address: string) => AgentAccount | null;
+  /** See DeriveInput.agentName. */
+  agentName?: (app: string) => string;
   /** How often to ask the core for its machines (the desktop asks every 2.5 s); 0 = only on connect. */
   machinePollMs?: number;
   /** A client's `looking` counts this long unless it renews it (LOOKING_TTL_MS). */
@@ -109,6 +111,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
   private readonly statusSince: WorldStoreOptions['statusSince'];
   private readonly transcriptOf: WorldStoreOptions['transcriptOf'];
   private readonly accountOf: WorldStoreOptions['accountOf'];
+  private readonly agentName: (app: string) => string;
   private readonly machinePollMs: number;
   private machineTimer: NodeJS.Timeout | null = null;
   private machines: string[] = [];
@@ -124,6 +127,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
     this.statusSince = opts.statusSince;
     this.transcriptOf = opts.transcriptOf;
     this.accountOf = opts.accountOf;
+    this.agentName = opts.agentName ?? ((app) => agentName(app));
     this.machinePollMs = opts.machinePollMs ?? 2500;
     this.lookingTtlMs = opts.lookingTtlMs ?? LOOKING_TTL_MS;
     this.now = opts.now ?? Date.now;
@@ -352,6 +356,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
       ...(this.statusSince ? { statusSince: this.statusSince } : {}),
       ...(this.transcriptOf ? { transcriptOf: this.transcriptOf } : {}),
       ...(this.accountOf ? { accountOf: this.accountOf } : {}),
+      agentName: this.agentName,
     });
     const ops = diffWorld(this.current, next);
     this.current = next;
@@ -429,7 +434,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
         subAgent: c.sub,
         hasPane: Boolean(view?.paneId),
         looking: this.isLooking(c.id),
-        name: t?.name || (app ? agentName(app) : null),
+        name: t?.name || (app ? this.agentName(app) : null),
         place: space && tab ? `${space.name} / ${tab.name}` : null,
       };
     });

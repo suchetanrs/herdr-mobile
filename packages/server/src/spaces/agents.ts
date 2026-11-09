@@ -1,8 +1,8 @@
 import { execFile } from 'node:child_process';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { StartChoice } from '@herdr-mobile/protocol';
+import { BUILT_IN_PROGRAMS, loadPrograms, type ProgramTable } from '../programs.js';
 
 /** An agent Herdr's + menu can start (programs.json entries with `run`). */
 export interface Startable {
@@ -11,65 +11,36 @@ export interface Startable {
   run: string[];
 }
 
-/**
- * herdr-app's built-in table (defaults/programs.json, v0.1.13, the entries with `run`; the
- * web app has the whole table in packages/web/src/lib/programs.json and a test keeps them equal).
- */
-export const BUILT_IN: readonly Startable[] = [
-  { key: 'claude', name: 'Claude Code', run: ['claude'] },
-  { key: 'codex', name: 'Codex', run: ['codex'] },
-  { key: 'pi', name: 'Pi', run: ['pi'] },
-  { key: 'pig', name: 'PiG', run: ['pig'] },
-  { key: 'opencode', name: 'OpenCode', run: ['opencode'] },
-  { key: 'cursor', name: 'Cursor', run: ['cursor-agent'] },
-  { key: 'copilot', name: 'Copilot', run: ['copilot'] },
-  { key: 'amp', name: 'Amp', run: ['amp'] },
-  { key: 'grok', name: 'Grok', run: ['grok'] },
-  { key: 'dsh-tui', name: 'DeepSeek Harness', run: ['dsh-tui'] },
-  { key: 'antigravity', name: 'Antigravity', run: ['agy'] },
-  { key: 'kimi', name: 'Kimi', run: ['kimi'] },
-  { key: 'kiro', name: 'Kiro', run: ['kiro-cli'] },
-  { key: 'hermes', name: 'Hermes', run: ['hermes'] },
-  { key: 'qoder', name: 'Qoder', run: ['qodercli'] },
-  { key: 'crush', name: 'Crush', run: ['crush'] },
-  { key: 'gemini', name: 'Gemini', run: ['gemini'] },
-];
-
 /** programs.rs `AGENTS_FIRST`: the agents people pick most, first in menus; the rest follow by key. */
 const AGENTS_FIRST = ['claude', 'codex', 'pi', 'opencode', 'cursor', 'copilot', 'amp', 'gemini', 'grok'];
 
 const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const WORD = /^[^\0\n\r]{1,256}$/;
 
+function startableOf(table: ProgramTable): Startable[] {
+  const list: Startable[] = [];
+  for (const [key, e] of table) {
+    // Exact argv the + menu may launch (core/policy.ts allowLaunches): keep them plain and short.
+    const run = e.run;
+    if (!run || run.length === 0 || run.length > 16 || !KEY.test(key) || !run.every((a) => WORD.test(a))) continue;
+    list.push({ key, name: e.name ?? key, run: [...run] });
+  }
+  return list;
+}
+
+/** herdr-app's built-in startable agents (defaults/programs.json entries with `run`, in file order). */
+export const BUILT_IN: readonly Startable[] = startableOf(new Map(Object.entries(BUILT_IN_PROGRAMS)));
+
 /**
  * The startable agents: the built-in table with the person's `programs.json` (herdr-app's
  * home) on top, entry by entry (programs.rs `load` / `Entry::over`), most picked first.
  */
 export function startable(herdrAppDir: string): Startable[] {
-  const table = new Map<string, Startable>(BUILT_IN.map((s) => [s.key, { ...s, run: [...s.run] }]));
-  try {
-    const mine = JSON.parse(fs.readFileSync(path.join(herdrAppDir, 'programs.json'), 'utf8')) as {
-      programs?: Record<string, { name?: unknown; run?: unknown }>;
-    };
-    for (const [key, e] of Object.entries(mine.programs ?? {})) {
-      if (!KEY.test(key) || !e || typeof e !== 'object') continue;
-      const was = table.get(key);
-      const run =
-        Array.isArray(e.run) && e.run.length > 0 && e.run.length <= 16 && e.run.every((a) => typeof a === 'string' && WORD.test(a))
-          ? (e.run as string[])
-          : null;
-      const name = typeof e.name === 'string' && e.name.trim() ? e.name.trim().slice(0, 64) : null;
-      if (was) table.set(key, { key, name: name ?? was.name, run: run ?? was.run });
-      else if (run) table.set(key, { key, name: name ?? key, run });
-    }
-  } catch {
-    // No file (the usual case) or not JSON: the desktop shows its own error; built-ins stand.
-  }
   const rank = (k: string) => {
     const i = AGENTS_FIRST.indexOf(k);
     return i === -1 ? AGENTS_FIRST.length : i;
   };
-  return [...table.values()].sort((a, b) => rank(a.key) - rank(b.key) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return startableOf(loadPrograms(herdrAppDir)).sort((a, b) => rank(a.key) - rank(b.key) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 
 /** The shell agents start in (window.rs `shell()`: $SHELL, else /bin/sh), here also the account's login shell. */

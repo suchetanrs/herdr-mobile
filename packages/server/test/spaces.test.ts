@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CoreClient } from '../src/core/client.js';
 import { allowLaunches, checkAppRequest, checkCall, expectRun, markStarted, PolicyError } from '../src/core/policy.js';
 import type { CoreTerminal } from '../src/core/types.js';
+import { BUILT_IN_PROGRAMS } from '../src/programs.js';
 import { agentArgv, agentChoices, BUILT_IN, InstalledAgents, installedLine, parseInstalled, startable } from '../src/spaces/agents.js';
 import { HerdrApp } from '../src/spaces/app.js';
 import { CreateError, paneSize, parseRequest, SpaceCreator } from '../src/spaces/create.js';
@@ -74,6 +75,31 @@ describe('policy: new spaces', () => {
     expect(() => checkCall('terminal.run', announced(run({ argv: [...claude, '--dangerously-skip-permissions'] })))).toThrow(PolicyError);
     allowLaunches([]);
     expect(() => checkCall('terminal.run', announced(run({ argv: claude })))).toThrow(PolicyError);
+  });
+
+  it('allows codex only as Herdr starts it (codex --no-daemon), from the + menu’s offers', async () => {
+    const dir = tmpDir('app');
+    try {
+      const creator = new SpaceCreator({
+        core: { call: async () => ({ templates: [] }) } as never,
+        store: { on() {}, off() {}, world: {} } as never,
+        app: { isOpen: async () => true, renameSpace: async () => {} } as never,
+        installed: { check: async () => ['codex'] },
+        home: dir,
+        herdrAppDir: dir,
+        shell: '/bin/bash',
+      });
+      const offers = await creator.offers();
+      const codex = agentArgv('/bin/bash', ['codex', '--no-daemon']);
+      expect(offers.find((o) => o.choice.key === 'codex')?.argv).toEqual(codex);
+      expect(() => checkCall('terminal.run', announced(run({ argv: codex })))).not.toThrow();
+      expect(() => checkCall('terminal.run', announced(run({ argv: agentArgv('/bin/bash', ['codex']) })))).toThrow(PolicyError);
+      // Not installed: offered greyed, never allowed.
+      expect(() => checkCall('terminal.run', announced(run({ argv: agentArgv('/bin/bash', ['claude']) })))).toThrow(PolicyError);
+    } finally {
+      allowLaunches([]);
+      rmDir(dir);
+    }
   });
 
   it('ends and names only what the bridge started', () => {
@@ -209,13 +235,25 @@ describe('folders', () => {
 });
 
 describe('agents', () => {
-  it('match the web app’s programs table (herdr-app defaults/programs.json)', () => {
+  it('match the web app’s programs table (herdr-app 0.1.14 defaults/programs.json)', () => {
     const file = fileURLToPath(new URL('../../web/src/lib/programs.json', import.meta.url));
-    const table = JSON.parse(fs.readFileSync(file, 'utf8')) as { programs: Record<string, { name: string; run?: string[] }> };
+    const table = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+      programs: Record<string, { name: string; match?: string[]; run?: string[] }>;
+    };
+    const pick = ({ name, match, run }: { name?: string; match?: string[]; run?: string[] }) => ({
+      name,
+      ...(match ? { match } : {}),
+      ...(run ? { run } : {}),
+    });
+    expect(Object.fromEntries(Object.entries(BUILT_IN_PROGRAMS).map(([k, e]) => [k, pick(e)]))).toEqual(
+      Object.fromEntries(Object.entries(table.programs).map(([k, e]) => [k, pick(e)])),
+    );
     const fromTable = Object.entries(table.programs)
       .filter(([, e]) => e.run?.length)
       .map(([key, e]) => ({ key, name: e.name, run: e.run }));
     expect([...BUILT_IN].sort((a, b) => a.key.localeCompare(b.key))).toEqual(fromTable.sort((a, b) => a.key.localeCompare(b.key)));
+    expect(BUILT_IN.find((s) => s.key === 'codex')?.run).toEqual(['codex', '--no-daemon']);
+    expect(BUILT_IN_PROGRAMS.kimi?.match).toEqual(['kimi-code', 'kimicodecli']);
   });
 
   it('come most-picked first, with the person’s programs.json on top', () => {
@@ -229,13 +267,29 @@ describe('agents', () => {
       fs.writeFileSync(
         path.join(dir, 'programs.json'),
         JSON.stringify({
-          programs: { claude: { run: ['claude', '--verbose'] }, mine: { name: 'Mine', run: ['mine'] }, bad: { run: 'x' } },
+          programs: {
+            claude: { run: ['claude', '--verbose'] },
+            mine: { name: 'Mine', run: ['mine'] },
+            unnamed: { run: ['unnamed'] },
+            long: { run: ['x', 'a\nb'] },
+            'bad key': { run: ['x'] },
+          },
         }),
       );
       const list = startable(dir);
       expect(list.find((s) => s.key === 'claude')).toEqual({ key: 'claude', name: 'Claude Code', run: ['claude', '--verbose'] });
+      expect(list.find((s) => s.key === 'codex')).toEqual({ key: 'codex', name: 'Codex', run: ['codex', '--no-daemon'] });
       expect(list.find((s) => s.key === 'mine')).toEqual({ key: 'mine', name: 'Mine', run: ['mine'] });
-      expect(list.find((s) => s.key === 'bad')).toBeUndefined();
+      expect(list.find((s) => s.key === 'unnamed')).toEqual({ key: 'unnamed', name: 'unnamed', run: ['unnamed'] });
+      // Never offered (so never allowed): a word with a newline, a key Herdr's menus wouldn't take.
+      expect(list.find((s) => s.key === 'long')).toBeUndefined();
+      expect(list.find((s) => s.key === 'bad key')).toBeUndefined();
+      // A wrong type anywhere: Herdr refuses the whole file and keeps its built-ins; so do we.
+      fs.writeFileSync(
+        path.join(dir, 'programs.json'),
+        JSON.stringify({ programs: { claude: { run: ['claude', '--verbose'] }, bad: { run: 'x' } } }),
+      );
+      expect(startable(dir)).toEqual(startable(path.join(dir, 'missing')));
     } finally {
       rmDir(dir);
     }

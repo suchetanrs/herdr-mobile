@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { builtInNames, type ProgramNames } from '../programs.js';
 
 /** A folder as a name: its last part, `~` for the home folder (model.rs `folder_name`). */
 export function folderName(full: string, home: string): string {
@@ -11,32 +12,9 @@ export function folderName(full: string, home: string): string {
   return parts[parts.length - 1] ?? p;
 }
 
-/** Agent names as the desktop shows them (window.rs `agent_name`). */
-export function agentName(app: string): string {
-  switch (app) {
-    case 'claude':
-    case 'claude-code':
-      return 'Claude Code';
-    case 'codex':
-      return 'Codex';
-    case 'pi':
-      return 'Pi';
-    case 'pig':
-      return 'PiG';
-    case 'opencode':
-      return 'OpenCode';
-    case 'cursor':
-    case 'cursor-agent':
-      return 'Cursor';
-    case 'amp':
-      return 'Amp';
-    case 'grok':
-      return 'Grok';
-    case 'dsh-tui':
-      return 'DeepSeek Harness';
-    default:
-      return app;
-  }
+/** Agent names as the desktop shows them (programs.rs `name`, built-in table; the bridge passes the person's table in). */
+export function agentName(app: string, names: Pick<ProgramNames, 'name'> = builtInNames): string {
+  return names.name(app);
 }
 
 /**

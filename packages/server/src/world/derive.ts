@@ -26,6 +26,8 @@ export interface DeriveInput {
   transcriptOf?: (t: CoreTerminal) => string | null;
   /** The Claude account a terminal's `claude` runs under (local terminals only). */
   accountOf?: (address: string) => AgentAccount | null;
+  /** An agent's name from its 7501 app (default: Herdr's built-in programs table). */
+  agentName?: (app: string) => string;
 }
 
 const getTerminal = (src: DeriveInput['terminals'], a: string) => src.get(a);
@@ -37,10 +39,10 @@ function machineOf(address: string): string | null {
   return i > 0 ? address.slice(0, i) : null;
 }
 
-export function terminalLabel(t: CoreTerminal): string {
+export function terminalLabel(t: CoreTerminal, nameOf: (app: string) => string = agentName): string {
   if (t.name) return t.name;
   const app = appOf(t);
-  if (app) return agentName(app);
+  if (app) return nameOf(app);
   return t.foreground?.name || t.address;
 }
 
@@ -88,7 +90,7 @@ export function deriveWorld(input: DeriveInput): World {
       parent: t.parent || null,
       children: children.get(t.address) ?? [],
       name: t.name || null,
-      label: terminalLabel(t),
+      label: terminalLabel(t, input.agentName),
       app: appOf(t),
       program: t.foreground?.name || null,
       title: t.title ?? '',

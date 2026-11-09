@@ -1,6 +1,6 @@
 # Third-party assets in @herdr-mobile/web
 
-Copied from Herdr (herdr-app v0.1.13, github.com/herdrdev/herdr-app, Apache-2.0, `licenses/herdr-app-LICENSE.txt`):
+Copied from Herdr (herdr-app v0.1.13; program table v0.1.14, github.com/herdrdev/herdr-app, Apache-2.0, `licenses/herdr-app-LICENSE.txt`):
 
 | What                                              | Where here                               | From                                                        | License                                                                                |
 | ------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |

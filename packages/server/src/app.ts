@@ -1,6 +1,6 @@
 import type { AddressInfo, Socket } from 'node:net';
 import path from 'node:path';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, LogController } from 'fastify';
 import { ClaudeAccounts } from './accounts/accounts.js';
 import { AttentionEngine } from './attention/engine.js';
 import { AuthLimiter } from './auth/limiter.js';
@@ -15,6 +15,7 @@ import type { Logger } from './log.js';
 import { InPageSink } from './notify/inpage.js';
 import { NotifierHub } from './notify/notifier.js';
 import { NtfySink } from './notify/ntfy.js';
+import { ProgramNames } from './programs.js';
 import { SeenSync } from './seen/sync.js';
 import { InstalledAgents, userShell } from './spaces/agents.js';
 import { HerdrApp } from './spaces/app.js';
@@ -64,7 +65,7 @@ export function createBridge(config: Config): Bridge {
     // Behind `tailscale serve` (loopback): req.ip / req.protocol come from X-Forwarded-*.
     trustProxy: config.trustProxy ? 'loopback' : false,
     // One line per request (every asset, every API poll) floods journald: only at debug.
-    disableRequestLogging: !['debug', 'trace'].includes(config.logLevel),
+    logController: new LogController({ disableRequestLogging: !['debug', 'trace'].includes(config.logLevel) }),
     logger: {
       level: config.logLevel,
       serializers: {
@@ -142,6 +143,7 @@ export function createBridge(config: Config): Bridge {
   let colors: SpaceColors | null = null;
   let times: AgentTimes | null = null;
   let accounts: ClaudeAccounts | null = null;
+  const programNames = new ProgramNames(config.herdrAppDir);
   const store = new WorldStore({
     client,
     logger,
@@ -153,6 +155,7 @@ export function createBridge(config: Config): Bridge {
     statusSince: (id, status) => times?.since(id, status) ?? null,
     transcriptOf: (t) => transcripts.locate(t)?.source.path ?? null,
     ...(config.claudeAccounts ? { accountOf: (id: string) => accounts?.get(id) ?? null } : {}),
+    agentName: (app) => programNames.name(app),
   });
   colors = new SpaceColors(config.herdrAppDir, () => store.refresh(), logger);
   times = new AgentTimes(config.herdrAppDir, () => store.refresh(), logger);
