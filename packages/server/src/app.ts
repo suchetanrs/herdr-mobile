@@ -155,7 +155,9 @@ export function createBridge(config: Config): Bridge {
     spaceColor: (id) => colors?.get(id) ?? null,
     statusSince: (id, status) => times?.since(id, status) ?? null,
     transcriptOf: (t) => transcripts.locate(t)?.source.path ?? null,
-    ...(config.claudeAccounts ? { accountOf: (id: string) => accounts?.get(id) ?? null } : {}),
+    ...(config.claudeAccounts
+      ? { accountOf: (id: string) => accounts?.get(id) ?? null, busyOf: (id: string) => accounts?.busy(id) ?? false }
+      : {}),
     agentName: (app) => programNames.name(app),
   });
   colors = new SpaceColors(config.herdrAppDir, () => store.refresh(), logger);
@@ -166,9 +168,12 @@ export function createBridge(config: Config): Bridge {
       home: config.home,
       coreSocket: config.socketPath,
       onChange: () => store.refresh(),
+      onBackgroundEnd: (ids) => engine.backgroundEnded(ids),
       logger,
     });
     accounts = scanner;
+    // A turn ended or began: whether background work runs matters now.
+    store.on('transitions', () => scanner.poke());
     // A terminal appearing, exiting or starting/leaving `claude` changes who runs where.
     let shape = '';
     store.on('patch', (_ops, world) => {

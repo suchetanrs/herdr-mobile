@@ -149,7 +149,10 @@ export class ConfigCache {
 
 /** terminal id -> account, for the processes found now. */
 export async function scanAccounts(opts: ScanOptions, cache: ConfigCache): Promise<Map<string, AgentAccount>> {
-  const procs = await findClaudeProcesses(opts);
+  return accountsOf(await findClaudeProcesses(opts), cache);
+}
+
+export async function accountsOf(procs: readonly ClaudeProcess[], cache: ConfigCache): Promise<Map<string, AgentAccount>> {
   const out = new Map<string, AgentAccount>();
   const files = new Set(procs.map((p) => p.configFile));
   const byFile = new Map<string, AgentAccount | null>();
@@ -159,5 +162,40 @@ export async function scanAccounts(opts: ScanOptions, cache: ConfigCache): Promi
     const a = byFile.get(p.configFile);
     if (a) out.set(p.terminal, a);
   }
+  return out;
+}
+
+/**
+ * Claude Code runs each Bash tool command (a background one, a Monitor) as a direct child
+ * `bash -c 'source <config>/shell-snapshots/snapshot-...'`. Claude reports `done` once its own turn
+ * ends, even while such work (its own, or a background sub-agent's that waits on it) still runs.
+ */
+const TOOL_SHELL = /\/shell-snapshots\/snapshot-/;
+
+/** Terminals whose `claude` has a Bash tool command running (only read: children's cmdlines). */
+export async function backgroundOf(procs: readonly ClaudeProcess[], procRoot: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  await Promise.all(
+    procs.map(async (p) => {
+      let kids: string[];
+      try {
+        kids = (await fs.readFile(path.join(procRoot, String(p.pid), 'task', String(p.pid), 'children'), 'utf8'))
+          .split(/\s+/)
+          .filter((k) => /^\d+$/.test(k));
+      } catch {
+        return;
+      }
+      for (const k of kids) {
+        try {
+          if (TOOL_SHELL.test((await fs.readFile(path.join(procRoot, k, 'cmdline'))).toString('utf8'))) {
+            out.add(p.terminal);
+            return;
+          }
+        } catch {
+          // gone meanwhile
+        }
+      }
+    }),
+  );
   return out;
 }

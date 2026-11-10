@@ -25,6 +25,8 @@ export interface WordTransition {
   hasPane: boolean;
   /** A client says the person is looking at it right now. */
   looking: boolean;
+  /** Background work still runs (DeriveInput.busyOf): it shows as working. */
+  busy?: boolean;
   /** Its name for alerts: name, else the agent's name, else null. */
   name: string | null;
   /** "<space> / <tab>" of where it lives. */
@@ -66,6 +68,8 @@ export interface WorldStoreOptions {
   accountOf?: (address: string) => AgentAccount | null;
   /** See DeriveInput.agentName. */
   agentName?: (app: string) => string;
+  /** See DeriveInput.busyOf. */
+  busyOf?: (address: string) => boolean;
   /** How often to ask the core for its machines (the desktop asks every 2.5 s); 0 = only on connect. */
   machinePollMs?: number;
   /** A client's `looking` counts this long unless it renews it (LOOKING_TTL_MS). */
@@ -111,6 +115,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
   private readonly statusSince: WorldStoreOptions['statusSince'];
   private readonly transcriptOf: WorldStoreOptions['transcriptOf'];
   private readonly accountOf: WorldStoreOptions['accountOf'];
+  private readonly busyOf: WorldStoreOptions['busyOf'];
   private readonly agentName: (app: string) => string;
   private readonly machinePollMs: number;
   private machineTimer: NodeJS.Timeout | null = null;
@@ -127,6 +132,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
     this.statusSince = opts.statusSince;
     this.transcriptOf = opts.transcriptOf;
     this.accountOf = opts.accountOf;
+    this.busyOf = opts.busyOf;
     this.agentName = opts.agentName ?? ((app) => agentName(app));
     this.machinePollMs = opts.machinePollMs ?? 2500;
     this.lookingTtlMs = opts.lookingTtlMs ?? LOOKING_TTL_MS;
@@ -356,6 +362,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
       ...(this.statusSince ? { statusSince: this.statusSince } : {}),
       ...(this.transcriptOf ? { transcriptOf: this.transcriptOf } : {}),
       ...(this.accountOf ? { accountOf: this.accountOf } : {}),
+      ...(this.busyOf ? { busyOf: this.busyOf } : {}),
       agentName: this.agentName,
     });
     const ops = diffWorld(this.current, next);
@@ -434,6 +441,7 @@ export class WorldStore extends EventEmitter<StoreEvents> {
         subAgent: c.sub,
         hasPane: Boolean(view?.paneId),
         looking: this.isLooking(c.id),
+        busy: this.busyOf?.(c.id) ?? false,
         name: t?.name || (app ? this.agentName(app) : null),
         place: space && tab ? `${space.name} / ${tab.name}` : null,
       };

@@ -28,6 +28,8 @@ export interface DeriveInput {
   accountOf?: (address: string) => AgentAccount | null;
   /** An agent's name from its 7501 app (default: Herdr's built-in programs table). */
   agentName?: (app: string) => string;
+  /** Its program has background work running (a Claude's Bash tool commands): a finished turn shows as working. */
+  busyOf?: (address: string) => boolean;
 }
 
 const getTerminal = (src: DeriveInput['terminals'], a: string) => src.get(a);
@@ -62,7 +64,10 @@ export function deriveWorld(input: DeriveInput): World {
   }
   for (const list of children.values()) list.sort();
 
-  const status = (t: CoreTerminal) => displayStatus(wordOf(t), t.turn ?? 0, seenTurnOf(t), input.seenLocally(t.address));
+  const status = (t: CoreTerminal) => {
+    const s = displayStatus(wordOf(t), t.turn ?? 0, seenTurnOf(t), input.seenLocally(t.address));
+    return (s === 'done' || s === 'idle') && input.busyOf?.(t.address) ? 'working' : s;
+  };
   // A sub-agent without a pane shows its raw word, error as blocked, and is never done: it reports to its
   // parent, and the parent's done is the news (agents mod `kidStatus`).
   const kidStatus = (t: CoreTerminal): TerminalView['status'] => {

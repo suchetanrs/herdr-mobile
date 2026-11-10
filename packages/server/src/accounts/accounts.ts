@@ -1,10 +1,12 @@
 import type { AgentAccount } from '@herdr-mobile/protocol';
 import { type Logger, silentLogger } from '../log.js';
-import { ConfigCache, type ScanOptions, scanAccounts } from './scan.js';
+import { accountsOf, backgroundOf, ConfigCache, findClaudeProcesses, type ScanOptions } from './scan.js';
 
 export interface ClaudeAccountsOptions extends ScanOptions {
   /** Called when some terminal's account changed (the world store rebuilds). */
   onChange: () => void;
+  /** These terminals' `claude` no longer has background work running. */
+  onBackgroundEnd?: (terminals: string[]) => void;
   logger?: Logger;
   /** Re-scan this often regardless (a /login inside a running claude; my-agents polls every 15 s). */
   intervalMs?: number;
@@ -13,12 +15,13 @@ export interface ClaudeAccountsOptions extends ScanOptions {
 }
 
 /**
- * Keeps the terminal -> Claude account map fresh: on an interval, and soon after the
+ * Keeps the terminal -> Claude account map (and which `claude` has background work) fresh: on an interval, and soon after the
  * terminals or their programs change (`poke`). Local terminals only: an address on
  * another machine (`vps/t7`) never has one.
  */
 export class ClaudeAccounts {
   private accounts = new Map<string, AgentAccount>();
+  private background = new Set<string>();
   private readonly cache = new ConfigCache();
   private readonly log: Logger;
   private timer: NodeJS.Timeout | null = null;
@@ -69,6 +72,11 @@ export class ClaudeAccounts {
     return this.accounts.get(address) ?? null;
   }
 
+  /** Its `claude` has a Bash tool command running (background work), as of the last scan. */
+  busy(address: string): boolean {
+    return this.background.has(address);
+  }
+
   /** Terminals appeared, exited or changed program: scan soon. */
   poke(): void {
     if (!this.started || this.stopped || this.pokeTimer) return;
@@ -89,18 +97,25 @@ export class ClaudeAccounts {
       do {
         this.again = false;
         let next: Map<string, AgentAccount>;
+        let bg: Set<string>;
         try {
-          next = await scanAccounts(this.opts, this.cache);
+          const procs = await findClaudeProcesses(this.opts);
+          next = await accountsOf(procs, this.cache);
+          bg = await backgroundOf(procs, this.opts.procRoot);
         } catch (err) {
           // Only the error's code: messages could quote a path, never file contents, but keep it minimal.
           this.log.debug({ code: (err as NodeJS.ErrnoException).code ?? 'error' }, 'claude account scan failed');
           continue;
         }
         if (this.stopped) return;
-        if (!sameMap(this.accounts, next)) {
+        const ended = [...this.background].filter((t) => !bg.has(t));
+        const bgChanged = ended.length > 0 || bg.size !== this.background.size;
+        if (!sameMap(this.accounts, next) || bgChanged) {
           this.accounts = next;
+          this.background = bg;
           this.opts.onChange();
         }
+        if (ended.length) this.opts.onBackgroundEnd?.(ended);
       } while (this.again && !this.stopped);
     })().finally(() => {
       this.running = null;

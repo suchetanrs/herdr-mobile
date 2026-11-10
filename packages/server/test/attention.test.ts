@@ -89,6 +89,26 @@ describe('AttentionEngine', () => {
     expect(sent).toHaveLength(0);
   });
 
+  it('holds finished while background work runs; sends it when that ends, unless busy or seen meanwhile', async () => {
+    engine.onTransitions([
+      tr({ terminalId: 't1', busy: true }),
+      tr({ terminalId: 't2', busy: true }),
+      tr({ terminalId: 't3', busy: true }),
+    ]);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(sent).toHaveLength(0);
+    // t2 starts a new turn (the background result woke it): its held alert is stale.
+    engine.onTransitions([tr({ terminalId: 't2', prev: 'done', next: 'working' })]);
+    engine.backgroundEnded(['t1', 't2', 't3', 't4']);
+    settled.add('t3');
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(sent.map((a) => [a.terminalId, a.kind, a.turn])).toEqual([['t1', 'done', 1]]);
+    // Held once, sent once.
+    engine.backgroundEnded(['t1']);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(sent).toHaveLength(1);
+  });
+
   it('dedupes the same alert and keeps a recent list', async () => {
     engine.onTransitions([tr({ prev: 'idle', next: 'blocked', turn: 4 })]);
     engine.onTransitions([tr({ prev: 'idle', next: 'blocked', turn: 4 })]);

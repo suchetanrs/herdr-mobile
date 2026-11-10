@@ -34,6 +34,8 @@ export class AttentionEngine {
   private readonly now: () => number;
   private readonly lastFired = new Map<string, number>();
   private readonly pendingDone = new Map<string, NodeJS.Timeout>();
+  /** "Finished" alerts held while the agent's background work still runs (it shows as working). */
+  private readonly heldDone = new Map<string, AttentionAlert>();
   private readonly recentAlerts: AttentionAlert[] = [];
 
   constructor(opts: AttentionEngineOptions) {
@@ -53,7 +55,10 @@ export class AttentionEngine {
   onTransitions(transitions: readonly WordTransition[]): void {
     for (const t of transitions) {
       // Busy again: a "finished" still in its grace period is stale.
-      if (t.next === 'working' || t.next === 'blocked' || t.next === 'error') this.cancelDone(t.terminalId);
+      if (t.next === 'working' || t.next === 'blocked' || t.next === 'error') {
+        this.cancelDone(t.terminalId);
+        this.heldDone.delete(t.terminalId);
+      }
       const kind = alertFor(t);
       if (!kind) continue;
       const { title, level } = alertText(kind, t.name);
@@ -67,27 +72,47 @@ export class AttentionEngine {
         turn: t.turn,
         at: this.now(),
       };
-      if (kind === 'done' && this.doneGraceMs > 0) {
+      if (kind === 'done' && t.busy) {
         this.cancelDone(t.terminalId);
-        const timer = setTimeout(() => {
-          this.pendingDone.delete(t.terminalId);
-          if (this.isSettled(t.terminalId)) {
-            this.log.debug({ terminal: t.terminalId }, 'finished alert dropped: seen meanwhile');
-            return;
-          }
-          this.fire({ ...alert, at: this.now() });
-        }, this.doneGraceMs);
-        timer.unref();
-        this.pendingDone.set(t.terminalId, timer);
-      } else {
-        this.fire(alert);
-      }
+        this.heldDone.set(t.terminalId, alert);
+      } else if (kind === 'done') this.queueDone(alert);
+      else this.fire(alert);
     }
+  }
+
+  /** These agents' background work ended: a "finished" held for them is news now (unless seen meanwhile). */
+  backgroundEnded(terminalIds: readonly string[]): void {
+    for (const id of terminalIds) {
+      const alert = this.heldDone.get(id);
+      if (!alert) continue;
+      this.heldDone.delete(id);
+      this.queueDone(alert);
+    }
+  }
+
+  private queueDone(alert: AttentionAlert): void {
+    const id = alert.terminalId;
+    if (this.doneGraceMs <= 0) {
+      this.fire(alert);
+      return;
+    }
+    this.cancelDone(id);
+    const timer = setTimeout(() => {
+      this.pendingDone.delete(id);
+      if (this.isSettled(id)) {
+        this.log.debug({ terminal: id }, 'finished alert dropped: seen meanwhile');
+        return;
+      }
+      this.fire({ ...alert, at: this.now() });
+    }, this.doneGraceMs);
+    timer.unref();
+    this.pendingDone.set(id, timer);
   }
 
   stop(): void {
     for (const t of this.pendingDone.values()) clearTimeout(t);
     this.pendingDone.clear();
+    this.heldDone.clear();
   }
 
   private cancelDone(id: string): void {

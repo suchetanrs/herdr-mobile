@@ -234,6 +234,12 @@ logged). Same result as my-agents' `accounts.py`; re-checked every 10 s and as s
 `claude`. Terminals on other machines get none. Off: `HERDR_MOBILE_ACCOUNTS=0`. Live check:
 `node scripts/check-accounts.mjs` (compares /api/world with `accounts.py`, read only).
 
+Background work: Claude Code reports `done` when its own turn ends, even while a Bash command it started in the
+background (or one a background sub-agent waits on) still runs. The same scan looks at each `claude`'s child processes:
+while one is a Bash tool shell (`bash -c 'source …/shell-snapshots/snapshot-…'`), a finished agent shows as working,
+like my-agents, and its "finished" alert waits until that work ends (dropped if the agent takes a new turn or is seen
+meanwhile). A server left running in the background keeps the agent working until it stops.
+
 ## Configuration
 
 Environment (`HERDR_MOBILE_*`, in `~/.config/herdr-mobile/env` for the service): `BIND` (`loopback,tailscale`; a

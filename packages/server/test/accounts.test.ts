@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ClaudeAccounts } from '../src/accounts/accounts.js';
-import { accountOf, ConfigCache, findClaudeProcesses, scanAccounts } from '../src/accounts/scan.js';
+import { accountOf, backgroundOf, ConfigCache, findClaudeProcesses, scanAccounts } from '../src/accounts/scan.js';
 import { startBridge, type TestBridge } from './helpers/bridge.js';
 import { rmDir, tmpDir, until } from './helpers/tmp.js';
 
@@ -188,6 +188,53 @@ describe('ClaudeAccounts', () => {
   });
 });
 
+/** <pid>/task/<pid>/children and each child's cmdline (NUL-separated argv). */
+function writeKids(root: string, pid: number, kids: Array<{ pid: number; argv: string[] }>): void {
+  const task = path.join(root, String(pid), 'task', String(pid));
+  fs.mkdirSync(task, { recursive: true });
+  fs.writeFileSync(path.join(task, 'children'), kids.map((k) => `${k.pid} `).join(''));
+  for (const k of kids) {
+    fs.mkdirSync(path.join(root, String(k.pid)), { recursive: true });
+    fs.writeFileSync(path.join(root, String(k.pid), 'cmdline'), `${k.argv.join('\0')}\0`);
+  }
+}
+
+const toolShell = (home: string) => [
+  '/bin/bash',
+  '-c',
+  `source ${home}/.claude/shell-snapshots/snapshot-bash-1-x.sh 2>/dev/null || true && eval 'sleep 600'`,
+];
+
+describe('background work (Bash tool commands under claude)', () => {
+  it('a claude with a shell-snapshot bash child has background work; MCP servers and hooks are not', async () => {
+    const { home, proc } = fixture();
+    writeKids(proc, 100, [{ pid: 300, argv: toolShell(home) }]);
+    writeKids(proc, 101, [
+      { pid: 301, argv: ['node', '/opt/mcp/server.js'] },
+      { pid: 302, argv: ['python3', '/x/agent_resume.py', 'hook', 'claude'] },
+    ]);
+    const procs = await findClaudeProcesses({ procRoot: proc, home });
+    expect([...(await backgroundOf(procs, proc))]).toEqual(['t1']);
+  });
+
+  it('ClaudeAccounts says busy, and tells when it ends', async () => {
+    const { home, proc } = fixture();
+    writeKids(proc, 100, [{ pid: 300, argv: toolShell(home) }]);
+    let changes = 0;
+    const ended: string[][] = [];
+    const acc = new ClaudeAccounts({ procRoot: proc, home, onChange: () => changes++, onBackgroundEnd: (ids) => ended.push(ids) });
+    await acc.scan();
+    expect(acc.busy('t1')).toBe(true);
+    expect(acc.busy('t2')).toBe(false);
+    fs.writeFileSync(path.join(proc, '100', 'task', '100', 'children'), '');
+    await acc.scan();
+    expect(acc.busy('t1')).toBe(false);
+    expect(changes).toBe(2);
+    expect(ended).toEqual([['t1']]);
+    acc.stop();
+  });
+});
+
 describe('accounts in the world', () => {
   let b: TestBridge | null = null;
   afterEach(async () => {
@@ -231,6 +278,21 @@ describe('accounts in the world', () => {
     });
     expect(body).toContain('"account":{"name":"alice","plan":"pro"}');
     for (const secret of SECRETS) expect(body).not.toContain(secret);
+  });
+
+  it('a finished Claude turn shows as working while its background work runs, and done after', async () => {
+    const { home, proc } = fixture();
+    writeKids(proc, 100, [{ pid: 300, argv: toolShell(home) }]);
+    b = await startBridge({ claudeAccounts: true, procRoot: proc, home });
+    const world = () => b?.bridge.store.world;
+    await until(() => world()?.terminals.t1?.account);
+    // t1 reports done (turn 3, seen 2) but its claude still runs a Bash tool command.
+    expect(world()?.terminals.t1?.word).toBe('done');
+    await until(() => world()?.terminals.t1?.status === 'working', 2000);
+    // The command ends; the next turn change (any word change) has the bridge look again.
+    fs.writeFileSync(path.join(proc, '100', 'task', '100', 'children'), '');
+    b.core.status('t1', 'idle');
+    await until(() => world()?.terminals.t1?.status === 'done', 2000);
   });
 
   it('is off unless configured (no /proc scan in test bridges)', async () => {
