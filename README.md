@@ -9,5 +9,6 @@ fnm install 22 && fnm use 22
 npm ci
 npm run build
 scripts/install-service.sh --no-build
+scripts/mods-install.sh
 echo "http://$(tailscale ip -4):8787/#token=$(cat ~/.config/herdr-mobile/token)"
 ```

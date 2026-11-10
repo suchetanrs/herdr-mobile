@@ -1,0 +1,5 @@
+These mods and the layout are modified versions of Herdr's mods (agents, spaces, files)
+and layout (main) from herdr-app (github.com/herdrdev/herdr-app), licensed under the
+Apache License 2.0: see ../packages/web/licenses/herdr-app-LICENSE.txt or
+http://www.apache.org/licenses/LICENSE-2.0. The icons in mods/my-files are Lucide
+icons (ISC, ../packages/web/licenses/Lucide-LICENSE.txt).
