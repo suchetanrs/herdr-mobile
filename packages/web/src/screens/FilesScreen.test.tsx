@@ -162,3 +162,49 @@ describe('lib/files', () => {
     expect(completeFrom('pi', names)).toBe('Pictures/');
   });
 });
+
+describe('File viewer', () => {
+  it('viewable files open the viewer (download stays a link); others stay downloads', async () => {
+    tree[HOME] = dirOf(HOME, [
+      ['clip.mp4', 'file'],
+      ['notes.txt', 'file'],
+    ]);
+    window.location.hash = '#/files';
+    renderWith(<FilesScreen />, sampleWorld());
+    await screen.findByText('clip.mp4');
+    expect(screen.getByRole('link', { name: 'Download clip.mp4' }).getAttribute('href')).toBe(
+      `/api/fs/download?path=${encodeURIComponent(`${HOME}/clip.mp4`)}`,
+    );
+    expect(screen.queryByRole('button', { name: 'Open notes.txt' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open clip.mp4' }));
+    expect(window.location.hash).toBe(`#/files/view/${encodeURIComponent(`${HOME}/clip.mp4`)}`);
+  });
+
+  it('video, image and Markdown (raw HTML stays text); a media error offers Download', async () => {
+    const { FileViewer } = await import('./FileViewer');
+    const onClose = vi.fn();
+    const v = renderWith(<FileViewer path={`${HOME}/clip.mp4`} onClose={onClose} />, sampleWorld());
+    const video = v.container.querySelector('video') as HTMLVideoElement;
+    expect(video.getAttribute('src')).toBe(`/api/fs/view?path=${encodeURIComponent(`${HOME}/clip.mp4`)}`);
+    expect(video.hasAttribute('playsinline')).toBe(true);
+    fireEvent.error(video);
+    expect(await screen.findByText('Can’t show this here')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Download instead/ }).getAttribute('href')).toContain('/api/fs/download?path=');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalled();
+    cleanup();
+
+    const i = renderWith(<FileViewer path={`${HOME}/pic.png`} onClose={onClose} />, sampleWorld());
+    expect(i.container.querySelector('img.fv-img')?.getAttribute('src')).toContain('/api/fs/view?path=');
+    cleanup();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('# Title\n\n<script>window.hacked = 1</script> and `code`', { status: 200 })),
+    );
+    const m = renderWith(<FileViewer path={`${HOME}/README.md`} onClose={onClose} />, sampleWorld());
+    await screen.findByRole('heading', { name: 'Title' });
+    expect(m.container.querySelector('.fv-md script')).toBeNull();
+    expect(m.container.textContent).toContain('<script>window.hacked = 1</script>');
+  });
+});

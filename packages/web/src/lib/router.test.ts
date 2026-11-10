@@ -8,6 +8,8 @@ describe('router', () => {
       { name: 'alerts' },
       { name: 'settings' },
       { name: 'new' },
+      { name: 'files' },
+      { name: 'files', view: '/home/me/My clips/a#1 ö.mp4' },
       { name: 'space', spaceId: 'rohan/sp1' },
       { name: 'agent', terminalId: 'rohan/t7' },
       { name: 'agent', terminalId: 't7', view: 'conversation' },

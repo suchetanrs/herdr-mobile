@@ -4,8 +4,8 @@ export type Route =
   | { name: 'alerts' }
   | { name: 'settings' }
   | { name: 'new' }
-  /** The file browser (its folder is remembered on the device, not in the address). */
-  | { name: 'files' }
+  /** The file browser (its folder is remembered on the device, not in the address); `view`: a file open in the viewer. */
+  | { name: 'files'; view?: string }
   | { name: 'space'; spaceId: string }
   /** No `view`: the agent's remembered tab, else Conversation when it has a transcript. */
   | { name: 'agent'; terminalId: string; view?: 'terminal' | 'conversation' };
@@ -21,7 +21,7 @@ export function parseRoute(hash: string): Route {
   if (head === 'alerts') return { name: 'alerts' };
   if (head === 'settings') return { name: 'settings' };
   if (head === 'new') return { name: 'new' };
-  if (head === 'files') return { name: 'files' };
+  if (head === 'files') return id === 'view' && extra ? { name: 'files', view: extra } : { name: 'files' };
   return { name: 'spaces' };
 }
 
@@ -36,7 +36,7 @@ export function routeHash(r: Route): string {
     case 'new':
       return '#/new';
     case 'files':
-      return '#/files';
+      return r.view ? `#/files/view/${encodeURIComponent(r.view)}` : '#/files';
     case 'space':
       return `#/s/${encodeURIComponent(r.spaceId)}`;
     case 'agent':

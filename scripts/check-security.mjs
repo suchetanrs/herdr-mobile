@@ -40,7 +40,9 @@ const check = (ok, what, detail = '') => {
 const scrub = (s) => (token ? String(s).split(token).join('<token>') : String(s));
 
 const MUST_HEADERS = {
-  'content-security-policy': (v) => v.includes("default-src 'self'") && v.includes("frame-ancestors 'none'"),
+  // Pages: default-src 'self'; files shown inline (/api/fs/view): the stricter default-src 'none'.
+  'content-security-policy': (v) =>
+    (v.includes("default-src 'self'") || v.includes("default-src 'none'")) && v.includes("frame-ancestors 'none'"),
   'x-content-type-options': (v) => v === 'nosniff',
   'x-frame-options': (v) => v === 'DENY',
   'referrer-policy': (v) => v === 'no-referrer',
@@ -198,6 +200,60 @@ async function fileChecks(get, cookie, T) {
     T('with the session: download /etc/hostname as an attachment (octet-stream, nosniff)'),
     `HTTP ${host.status} ${host.headers['content-type']}`,
   );
+  await viewChecks(get, cookie, T, secrets);
+}
+
+/**
+ * The viewer endpoint with a session: inline only for allowlisted, sniffed files, sandboxed; HTML and SVG (also
+ * renamed to .png) never inline; the bridge's secrets refused. Fixture files go to the repo's .test-tmp.
+ */
+async function viewChecks(get, cookie, T, secrets) {
+  const q = encodeURIComponent;
+  const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', '.test-tmp', 'check-security-view');
+  fs.mkdirSync(dir, { recursive: true });
+  const page = '<!doctype html><script>alert(1)</script>';
+  const files = {
+    'page.html': page,
+    'logo.svg': '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    'page.png': page,
+    'page.md.html': page,
+    'pic.png': Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
+  };
+  for (const [n, c] of Object.entries(files)) fs.writeFileSync(path.join(dir, n), c);
+  for (const n of ['page.html', 'logo.svg', 'page.png', 'page.md.html']) {
+    const r = await get(`/api/fs/view?path=${q(path.join(dir, n))}`, { headers: { cookie } });
+    check(
+      r.status === 415 && /^application\/json/.test(String(r.headers['content-type'])) && !r.body.includes('<script'),
+      T(`with the session: view ${n}: 415 (never inline)`),
+      `HTTP ${r.status} ${r.headers['content-type']}`,
+    );
+  }
+  const etc = await get('/api/fs/view?path=%2Fetc%2Fhostname', { headers: { cookie } });
+  check(etc.status === 415, T('with the session: view /etc/hostname: 415'), `HTTP ${etc.status}`);
+  const png = await get(`/api/fs/view?path=${q(path.join(dir, 'pic.png'))}`, { headers: { cookie } });
+  check(
+    png.status === 200 &&
+      png.headers['content-type'] === 'image/png' &&
+      /^inline; filename="pic.png"/.test(String(png.headers['content-disposition'])) &&
+      png.headers['x-content-type-options'] === 'nosniff' &&
+      /^sandbox; default-src 'none'/.test(String(png.headers['content-security-policy'])) &&
+      png.headers['cache-control'] === 'no-store',
+    T('with the session: view a .png inline (image/png, nosniff, sandbox CSP, no-store)'),
+    `HTTP ${png.status} ${png.headers['content-type']} ${png.headers['content-security-policy']}`,
+  );
+  for (const f of ['token', 'sessions.json', 'env']) {
+    const r = await get(`/api/fs/view?path=${q(path.join(secrets, f))}`, { headers: { cookie } });
+    check(
+      r.status === 403 && (!token || !r.body.includes(token)),
+      T(`with the session: view ~/.config/herdr-mobile/${f}: 403`),
+      `HTTP ${r.status}`,
+    );
+  }
+  const cross = await get(`/api/fs/view?path=${q(path.join(dir, 'pic.png'))}`, {
+    headers: { cookie, 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'no-cors', 'sec-fetch-dest': 'image' },
+  });
+  check(cross.status === 403, T('with the session: cross-site view: 403'), `HTTP ${cross.status}`);
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 async function probe(base) {
@@ -279,6 +335,7 @@ async function probe(base) {
     ['/api/fs/list?path=~', {}],
     ['/api/fs/list?path=%2F', {}],
     ['/api/fs/download?path=%2Fetc%2Fhostname', {}],
+    ['/api/fs/view?path=%2Fetc%2Fhostname', {}],
     ['/api/nope', {}],
   ]) {
     const r = await get(p, o);
@@ -323,7 +380,7 @@ async function probe(base) {
     (await get('/api/world', { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'no-cors' } })).status === 403,
     T('cross-site API request: 403'),
   );
-  for (const p of ['/api/fs/list?path=~', '/api/fs/download?path=%2Fetc%2Fhostname']) {
+  for (const p of ['/api/fs/list?path=~', '/api/fs/download?path=%2Fetc%2Fhostname', '/api/fs/view?path=%2Fetc%2Fhostname']) {
     const r = await get(p, { headers: { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' } });
     check(r.status === 403, T(`cross-site ${p.split('?')[0]}: 403`), `HTTP ${r.status}`);
   }

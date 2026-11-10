@@ -33,6 +33,9 @@ export async function lookup(
 /** Where a file downloads from (same origin: the session cookie goes along). */
 export const downloadUrl = (abs: string) => `/api/fs/download?path=${encodeURIComponent(abs)}`;
 
+/** Where the viewer reads a viewable file from (inline; the bridge refuses anything not on its allowlist). */
+export const viewUrl = (abs: string) => `/api/fs/view?path=${encodeURIComponent(abs)}`;
+
 /** `dir` + `name` as one absolute path. */
 export const joinPath = (dir: string, name: string) => (dir.endsWith('/') ? `${dir}${name}` : `${dir}/${name}`);
 

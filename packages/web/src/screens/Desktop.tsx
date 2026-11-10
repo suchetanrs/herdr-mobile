@@ -249,7 +249,7 @@ export function Desktop({ route }: { route: Route }) {
           ) : route.name === 'new' ? (
             <NewSpaceScreen embedded />
           ) : route.name === 'files' ? (
-            <FilesScreen embedded />
+            <FilesScreen embedded view={route.view} />
           ) : (
             <SpacesScreen embedded />
           )}

@@ -1,6 +1,7 @@
 import { FS_PATH_MAX, type FsError } from '@herdr-mobile/protocol';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { contentDisposition, type FileBrowser, FsFailure, parseRange } from '../files/browse.js';
+import { checkViewable, SNIFF_BYTES, type ViewCheck, viewCsp } from '../files/view.js';
 import type { Logger } from '../log.js';
 
 /** Sliding-window counts per key (a device, or `local` for tools on this machine). */
@@ -32,6 +33,8 @@ export interface FileRouteLimits {
   listsPerMinute: number;
   /** Downloads started per device per 10 minutes. */
   downloadsPer10Min: number;
+  /** Viewer requests (each range a player asks for) per device per 10 minutes. */
+  viewsPer10Min: number;
   /** Downloads running at once, per device. */
   concurrentPerDevice: number;
   /** Downloads running at once, all devices. */
@@ -41,6 +44,7 @@ export interface FileRouteLimits {
 export const FILE_ROUTE_LIMITS: FileRouteLimits = {
   listsPerMinute: 240,
   downloadsPer10Min: 120,
+  viewsPer10Min: 1200,
   concurrentPerDevice: 4,
   concurrentTotal: 8,
 };
@@ -50,8 +54,9 @@ const keyOf = (req: FastifyRequest) => req.device?.id ?? 'local';
 /**
  * The file browser over REST, read only, behind the session and cross-site guard of transport/http.ts:
  * `GET /api/fs/list?path=&hidden=1&offset=` (a folder page, or a typed file's facts) and
- * `GET /api/fs/download?path=` (a regular file as an attachment, one byte range if asked). Every download is
- * logged with its path (never its content).
+ * `GET /api/fs/download?path=` (a regular file as an attachment, one byte range if asked) and
+ * `GET /api/fs/view?path=` (the same, inline, only for files/view.ts's allowlist, sandboxed). Every download
+ * and view is logged with its path (never its content).
  */
 export function registerFileRoutes(
   app: FastifyInstance,
@@ -60,6 +65,7 @@ export function registerFileRoutes(
   const limits = { ...FILE_ROUTE_LIMITS, ...opts.limits };
   const lists = new WindowLimiter(limits.listsPerMinute, 60_000);
   const downloads = new WindowLimiter(limits.downloadsPer10Min, 600_000);
+  const views = new WindowLimiter(limits.viewsPer10Min, 600_000);
   const running = new Map<string, number>();
   let runningTotal = 0;
 
@@ -93,7 +99,8 @@ export function registerFileRoutes(
     }
   });
 
-  app.get<{ Querystring: { path?: unknown } }>('/api/fs/download', async (req, reply) => {
+  /** Sends a file whole or one byte range: as an attachment, or (view) inline if it passes checkViewable. */
+  const send = async (req: FastifyRequest<{ Querystring: { path?: unknown } }>, reply: FastifyReply, view: boolean) => {
     reply.header('cache-control', 'no-store');
     const key = keyOf(req);
     const typed = typedPath(req.query.path);
@@ -102,7 +109,7 @@ export function registerFileRoutes(
       reply.header('retry-after', '5');
       return fail(reply, 429, 'busy', 'Too many downloads at once; wait for one to finish');
     }
-    if (!downloads.allow(key)) {
+    if (!(view ? views : downloads).allow(key)) {
       reply.header('retry-after', '60');
       return fail(reply, 429, 'busy', 'Too many downloads; wait a few minutes');
     }
@@ -114,6 +121,24 @@ export function registerFileRoutes(
     }
     const { handle, stat } = file;
     const size = stat.size;
+    let type = 'application/octet-stream';
+    if (view) {
+      let check: ViewCheck;
+      try {
+        const head = Buffer.alloc(SNIFF_BYTES);
+        const { bytesRead } = await handle.read(head, 0, SNIFF_BYTES, 0);
+        check = checkViewable(file.name, size, head.subarray(0, bytesRead));
+      } catch (e) {
+        await handle.close().catch(() => {});
+        return failed(reply, e, req);
+      }
+      if (!check.ok) {
+        await handle.close().catch(() => {});
+        return fail(reply, check.status, check.code, check.error);
+      }
+      type = check.type;
+      reply.headers({ 'content-security-policy': viewCsp(check.kind), 'x-frame-options': check.kind === 'pdf' ? 'SAMEORIGIN' : 'DENY' });
+    }
     const lastModified = stat.mtime.toUTCString();
     const ifRange = req.headers['if-range'];
     const range = ifRange && ifRange !== lastModified ? null : parseRange(req.headers.range, size);
@@ -123,8 +148,8 @@ export function registerFileRoutes(
       return fail(reply, 416, 'bad-path', 'That part of the file doesn’t exist');
     }
     reply.headers({
-      'content-type': 'application/octet-stream',
-      'content-disposition': contentDisposition(file.name),
+      'content-type': type,
+      'content-disposition': contentDisposition(file.name, view ? 'inline' : 'attachment'),
       'accept-ranges': 'bytes',
       'last-modified': lastModified,
       'x-content-type-options': 'nosniff',
@@ -133,7 +158,7 @@ export function registerFileRoutes(
     const end = range ? range.end : size - 1;
     opts.logger?.info(
       { device: req.device?.id ?? null, path: file.path, size, ...(range ? { range: `${start}-${end}` } : {}) },
-      'file download',
+      view ? 'file view' : 'file download',
     );
     running.set(key, (running.get(key) ?? 0) + 1);
     runningTotal++;
@@ -157,5 +182,9 @@ export function registerFileRoutes(
     const stream = handle.createReadStream({ start, end, autoClose: false });
     stream.once('error', finish);
     return reply.send(stream);
-  });
+  };
+
+  app.get<{ Querystring: { path?: unknown } }>('/api/fs/download', (req, reply) => send(req, reply, false));
+  // A player asks for many ranges while seeking, hence its own (larger) budget.
+  app.get<{ Querystring: { path?: unknown } }>('/api/fs/view', (req, reply) => send(req, reply, true));
 }

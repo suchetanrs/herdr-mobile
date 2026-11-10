@@ -71,7 +71,7 @@ function MobileScreen({ route }: { route: Route }) {
     case 'new':
       return <NewSpaceScreen />;
     case 'files':
-      return <FilesScreen />;
+      return <FilesScreen view={route.view} />;
     case 'space':
       return <SpaceScreen spaceId={route.spaceId} />;
     case 'agent':
@@ -86,6 +86,8 @@ function parentOf(r: Route): Route | null {
       return null;
     case 'agent':
       return { name: 'spaces' };
+    case 'files':
+      return r.view ? { name: 'files' } : { name: 'spaces' };
     default:
       return { name: 'spaces' };
   }

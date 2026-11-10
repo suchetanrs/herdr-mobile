@@ -1,5 +1,5 @@
-import type { FsEntry, FsFile, FsListing } from '@herdr-mobile/protocol';
-import { type FormEvent, type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type FsEntry, type FsFile, type FsListing, viewableOf } from '@herdr-mobile/protocol';
+import { type FormEvent, type KeyboardEvent, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { BackButton, Screen } from '../components/Screen';
 import { useTapFocus } from '../hooks/gestures';
@@ -16,11 +16,14 @@ import {
   tildePath,
   typedToPath,
 } from '../lib/files';
-import { back } from '../lib/router';
+import { back, navigate } from '../lib/router';
 import { load, save } from '../lib/storage';
+import { FileViewer } from '../views/lazy';
 
 const LAST_DIR = 'files.dir';
 const SHOW_HIDDEN = 'files.hidden';
+
+const openViewer = (path: string) => navigate({ name: 'files', view: path });
 
 function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; onOpen: (path: string) => void }) {
   const full = joinPath(dir, e.name);
@@ -35,6 +38,24 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
         </span>
         <Icon name="chevron-right" size={16} className="chev" />
       </button>
+    );
+  }
+  const viewable = e.kind === 'file' ? viewableOf(e.name) : null;
+  if (viewable) {
+    // Tap the row to view it; the download button still downloads.
+    return (
+      <div className="fs-row fs-viewable">
+        <button type="button" className="fs-open" onClick={() => openViewer(full)} aria-label={`Open ${e.name}`}>
+          <Icon name={viewable.kind === 'markdown' ? 'file-text' : 'file'} size={18} className="fs-icon" />
+          <span className="fs-text">
+            <span className="fs-name">{e.name}</span>
+            <span className="fs-meta">{[e.link ? 'Link' : '', fileSize(e.size), when].filter(Boolean).join(' · ')}</span>
+          </span>
+        </button>
+        <a className="fs-dl" href={downloadUrl(full)} download={e.name} aria-label={`Download ${e.name}`} title="Download">
+          <Icon name="download" size={17} />
+        </a>
+      </div>
     );
   }
   if (e.kind === 'file') {
@@ -64,10 +85,11 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
 
 /**
  * The computer's files, read only: a path bar (type or paste a folder to open it, or a file to download it),
- * the path as tappable parts, then the folder: folders first, tap one to open it, tap a file to download it.
+ * the path as tappable parts, then the folder: folders first, tap one to open it, tap a file to download it
+ * (or, for videos, audio, images, PDFs and Markdown, to open it in the viewer).
  * Starts in the last folder shown on this device, else the home folder.
  */
-export function FilesScreen({ embedded = false }: { embedded?: boolean }) {
+export function FilesScreen({ embedded = false, view }: { embedded?: boolean; view?: string | undefined }) {
   const [listing, setListing] = useState<FsListing | null>(null);
   const [problem, setProblem] = useState<FsProblem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -107,6 +129,10 @@ export function FilesScreen({ embedded = false }: { embedded?: boolean }) {
         setTyped(tildePath(r.path, r.home));
         save(LAST_DIR, r.path);
         if (opts.fromBar) input.current?.blur();
+      } else if (r.downloadable && viewableOf(r.name)) {
+        setFetched(null);
+        if (opts.fromBar) input.current?.blur();
+        openViewer(r.path);
       } else {
         setFetched(r);
         if (r.downloadable) startDownload(r.path, r.name);
@@ -334,7 +360,18 @@ export function FilesScreen({ embedded = false }: { embedded?: boolean }) {
       </div>
     </div>
   );
-  if (embedded) return <div className="main-page">{body}</div>;
+  const viewer = view ? (
+    <Suspense fallback={null}>
+      <FileViewer key={view} path={view} onClose={() => back({ name: 'files' })} />
+    </Suspense>
+  ) : null;
+  if (embedded)
+    return (
+      <div className="main-page">
+        {body}
+        {viewer}
+      </div>
+    );
   return (
     <Screen
       className="fs-screen"
@@ -346,6 +383,7 @@ export function FilesScreen({ embedded = false }: { embedded?: boolean }) {
       }
     >
       {body}
+      {viewer}
     </Screen>
   );
 }

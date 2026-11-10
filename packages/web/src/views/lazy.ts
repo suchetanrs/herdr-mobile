@@ -8,6 +8,8 @@ const importConversation = () => import('../conversation/ConversationView').then
 
 export const TerminalPane = lazy(retrying(importPane));
 export const ConversationView = lazy(retrying(importConversation));
+// The file viewer shares the Markdown renderer with the conversation view; it loads when a file is opened.
+export const FileViewer = lazy(retrying(() => import('../screens/FileViewer').then((m) => ({ default: m.FileViewer }))));
 
 type Connection = { effectiveType?: string; saveData?: boolean };
 
