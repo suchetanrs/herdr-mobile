@@ -205,7 +205,8 @@ async function fileChecks(get, cookie, T) {
 
 /**
  * The viewer endpoint with a session: inline only for allowlisted, sniffed files, sandboxed; HTML and SVG (also
- * renamed to .png) never inline; the bridge's secrets refused. Fixture files go to the repo's .test-tmp.
+ * renamed to .png) never inline; code only as plain text, binaries renamed to code refused; the bridge's
+ * secrets refused. Fixture files go to the repo's .test-tmp.
  */
 async function viewChecks(get, cookie, T, secrets) {
   const q = encodeURIComponent;
@@ -218,9 +219,12 @@ async function viewChecks(get, cookie, T, secrets) {
     'page.png': page,
     'page.md.html': page,
     'pic.png': Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
+    'page.py': page,
+    'bin.py': Buffer.from('7f454c46020101000000', 'hex'),
+    '.env': 'SECRET=1\n',
   };
   for (const [n, c] of Object.entries(files)) fs.writeFileSync(path.join(dir, n), c);
-  for (const n of ['page.html', 'logo.svg', 'page.png', 'page.md.html']) {
+  for (const n of ['page.html', 'logo.svg', 'page.png', 'page.md.html', 'bin.py', '.env']) {
     const r = await get(`/api/fs/view?path=${q(path.join(dir, n))}`, { headers: { cookie } });
     check(
       r.status === 415 && /^application\/json/.test(String(r.headers['content-type'])) && !r.body.includes('<script'),
@@ -228,8 +232,19 @@ async function viewChecks(get, cookie, T, secrets) {
       `HTTP ${r.status} ${r.headers['content-type']}`,
     );
   }
-  const etc = await get('/api/fs/view?path=%2Fetc%2Fhostname', { headers: { cookie } });
-  check(etc.status === 415, T('with the session: view /etc/hostname: 415'), `HTTP ${etc.status}`);
+  // Code and text (also a page saved as .py, or a text file with no extension) only ever go out as plain text.
+  for (const p of [path.join(dir, 'page.py'), '/etc/hostname']) {
+    const r = await get(`/api/fs/view?path=${q(p)}`, { headers: { cookie } });
+    check(
+      r.status === 200 &&
+        r.headers['content-type'] === 'text/plain; charset=utf-8' &&
+        r.headers['x-content-type-options'] === 'nosniff' &&
+        /^sandbox; default-src 'none'/.test(String(r.headers['content-security-policy'])) &&
+        r.headers['cache-control'] === 'no-store',
+      T(`with the session: view ${path.basename(p)}: plain text only (nosniff, sandbox CSP, no-store)`),
+      `HTTP ${r.status} ${r.headers['content-type']} ${r.headers['content-security-policy']}`,
+    );
+  }
   const png = await get(`/api/fs/view?path=${q(path.join(dir, 'pic.png'))}`, { headers: { cookie } });
   check(
     png.status === 200 &&

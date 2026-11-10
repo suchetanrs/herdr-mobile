@@ -1,7 +1,8 @@
-import { type FsEntry, type FsFile, type FsListing, viewableOf } from '@herdr-mobile/protocol';
+import { FS_TEXT_MAX, type FsEntry, type FsFile, type FsListing, isTextKind, viewableOf } from '@herdr-mobile/protocol';
 import { type FormEvent, type KeyboardEvent, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { BackButton, Screen } from '../components/Screen';
+import { shallowEqual, useSelector } from '../hooks/app';
 import { useTapFocus } from '../hooks/gestures';
 import {
   completeFrom,
@@ -16,21 +17,42 @@ import {
   tildePath,
   typedToPath,
 } from '../lib/files';
+import { spaceFolders, spaceOf } from '../lib/model';
 import { back, navigate } from '../lib/router';
 import { load, save } from '../lib/storage';
+import type { AppState } from '../lib/store';
 import { FileViewer } from '../views/lazy';
 
 const LAST_DIR = 'files.dir';
 const SHOW_HIDDEN = 'files.hidden';
 
-const openViewer = (path: string) => navigate({ name: 'files', view: path });
+/** How the viewer shows a file, or null (tap downloads it): text too big for the viewer downloads too. */
+const viewerFor = (name: string, size: number | null) => {
+  const v = viewableOf(name);
+  return v && isTextKind(v.kind) && (size ?? 0) > FS_TEXT_MAX ? null : v;
+};
+const openViewer = (path: string, space?: string) => navigate({ name: 'files', view: path, ...(space ? { space } : {}) });
 
-function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; onOpen: (path: string) => void }) {
+function Row({
+  dir,
+  e,
+  now,
+  onOpen,
+  onView,
+}: {
+  dir: string;
+  e: FsEntry;
+  now: number;
+  onOpen: (path: string) => void;
+  onView: (path: string) => void;
+}) {
   const full = joinPath(dir, e.name);
   const when = modified(e.mtime, now);
+  // Git ignores it: dimmed (as in the desktop's Files panel), otherwise the same row.
+  const cls = (base: string) => (e.ignored ? `${base} fs-ignored` : base);
   if (e.kind === 'dir') {
     return (
-      <button type="button" className="fs-row" onClick={() => onOpen(full)}>
+      <button type="button" className={cls('fs-row')} onClick={() => onOpen(full)}>
         <Icon name="folder" size={18} className="fs-icon fs-dir" />
         <span className="fs-text">
           <span className="fs-name">{e.name}</span>
@@ -40,13 +62,13 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
       </button>
     );
   }
-  const viewable = e.kind === 'file' ? viewableOf(e.name) : null;
+  const viewable = e.kind === 'file' ? viewerFor(e.name, e.size) : null;
   if (viewable) {
     // Tap the row to view it; the download button still downloads.
     return (
-      <div className="fs-row fs-viewable">
-        <button type="button" className="fs-open" onClick={() => openViewer(full)} aria-label={`Open ${e.name}`}>
-          <Icon name={viewable.kind === 'markdown' ? 'file-text' : 'file'} size={18} className="fs-icon" />
+      <div className={cls('fs-row fs-viewable')}>
+        <button type="button" className="fs-open" onClick={() => onView(full)} aria-label={`Open ${e.name}`}>
+          <Icon name={isTextKind(viewable.kind) ? 'file-text' : 'file'} size={18} className="fs-icon" />
           <span className="fs-text">
             <span className="fs-name">{e.name}</span>
             <span className="fs-meta">{[e.link ? 'Link' : '', fileSize(e.size), when].filter(Boolean).join(' · ')}</span>
@@ -60,7 +82,7 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
   }
   if (e.kind === 'file') {
     return (
-      <a className="fs-row" href={downloadUrl(full)} download={e.name} aria-label={`Download ${e.name}`}>
+      <a className={cls('fs-row')} href={downloadUrl(full)} download={e.name} aria-label={`Download ${e.name}`}>
         <Icon name="file" size={18} className="fs-icon" />
         <span className="fs-text">
           <span className="fs-name">{e.name}</span>
@@ -73,7 +95,7 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
     );
   }
   return (
-    <div className="fs-row fs-other">
+    <div className={cls('fs-row fs-other')}>
       <Icon name="file" size={18} className="fs-icon" />
       <span className="fs-text">
         <span className="fs-name">{e.name}</span>
@@ -87,9 +109,26 @@ function Row({ dir, e, now, onOpen }: { dir: string; e: FsEntry; now: number; on
  * The computer's files, read only: a path bar (type or paste a folder to open it, or a file to download it),
  * the path as tappable parts, then the folder: folders first, tap one to open it, tap a file to download it
  * (or, for videos, audio, images, PDFs and Markdown, to open it in the viewer).
- * Starts in the last folder shown on this device, else the home folder.
+ * Starts in the last folder shown on this device, else the home folder; opened from a space (`space`), in
+ * that space's folder instead (and the device's last folder is left alone). Entries git ignores are dimmed.
  */
-export function FilesScreen({ embedded = false, view }: { embedded?: boolean; view?: string | undefined }) {
+export function FilesScreen({
+  embedded = false,
+  view,
+  space,
+}: {
+  embedded?: boolean;
+  view?: string | undefined;
+  space?: string | undefined;
+}) {
+  const selectSpace = useCallback(
+    (st: AppState) =>
+      space
+        ? { folders: spaceFolders(st.view, space).join('\0'), name: spaceOf(st.view, space)?.name ?? '', ready: st.view.core.connected }
+        : null,
+    [space],
+  );
+  const from = useSelector(selectSpace, shallowEqual);
   const [listing, setListing] = useState<FsListing | null>(null);
   const [problem, setProblem] = useState<FsProblem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -98,6 +137,8 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
   const [typed, setTyped] = useState('');
   const [fetched, setFetched] = useState<FsFile | null>(null);
   const seq = useRef(0);
+  // Bumped on every edit of the path bar: a folder that finishes loading doesn't overwrite what was typed meanwhile.
+  const edits = useRef(0);
   const input = useRef<HTMLInputElement | null>(null);
   const tapFocus = useTapFocus<HTMLInputElement>();
   const inputRef = useCallback(
@@ -116,8 +157,9 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
     if (el && shownPath !== undefined) el.scrollLeft = el.scrollWidth;
   }, [shownPath]);
 
-  const open = useCallback(async (target: string, opts: { hidden: boolean; fallback?: boolean; fromBar?: boolean }) => {
+  const open = useCallback(async (target: string, opts: { hidden: boolean; fallbacks?: string[]; fromBar?: boolean }) => {
     const mine = ++seq.current;
+    const editsAtStart = edits.current;
     setLoading(true);
     try {
       const r = await lookup(target, { hidden: opts.hidden });
@@ -126,22 +168,23 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
       if (r.kind === 'dir') {
         setListing(r);
         setFetched(null);
-        setTyped(tildePath(r.path, r.home));
-        save(LAST_DIR, r.path);
+        if (opts.fromBar || edits.current === editsAtStart) setTyped(tildePath(r.path, r.home));
+        if (!spaceRef.current) save(LAST_DIR, r.path);
         if (opts.fromBar) input.current?.blur();
-      } else if (r.downloadable && viewableOf(r.name)) {
+      } else if (r.downloadable && viewerFor(r.name, r.size)) {
         setFetched(null);
         if (opts.fromBar) input.current?.blur();
-        openViewer(r.path);
+        openViewer(r.path, spaceRef.current);
       } else {
         setFetched(r);
         if (r.downloadable) startDownload(r.path, r.name);
       }
     } catch (e) {
       if (mine !== seq.current) return;
-      if (opts.fallback) {
-        // The remembered folder is gone (or private now): the home folder instead.
-        void openRef.current('~', { hidden: opts.hidden });
+      const [next, ...rest] = opts.fallbacks ?? [];
+      if (next) {
+        // The remembered (or the space's) folder is gone, or private now: the next one (in the end, home).
+        void openRef.current(next, { hidden: opts.hidden, fallbacks: rest });
         return;
       }
       setFetched(null);
@@ -152,11 +195,28 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
   }, []);
   const openRef = useRef(open);
   openRef.current = open;
+  const spaceRef = useRef(space);
+  spaceRef.current = space;
 
+  // The first folder, once: the space's (when the world knows it), else the last one shown here, else home.
+  const started = useRef(false);
+  const spaceFolderList = from?.folders;
+  const worldReady = from?.ready;
   useEffect(() => {
+    if (started.current) return;
+    const showHidden = load<boolean>(SHOW_HIDDEN, false);
+    if (space) {
+      const list = spaceFolderList ? spaceFolderList.split('\0') : [];
+      if (list.length === 0 && !worldReady) return; // the world isn't here yet
+      started.current = true;
+      const [first, ...rest] = [...list, '~'];
+      void open(first ?? '~', { hidden: showHidden, fallbacks: rest });
+      return;
+    }
+    started.current = true;
     const last = load<string | null>(LAST_DIR, null);
-    void open(last ?? '~', { hidden: load<boolean>(SHOW_HIDDEN, false), fallback: last !== null });
-  }, [open]);
+    void open(last ?? '~', { hidden: showHidden, fallbacks: last !== null ? ['~'] : [] });
+  }, [open, space, spaceFolderList, worldReady]);
 
   const go = (target: string) => void open(target, { hidden });
   const where = listing?.path ?? null;
@@ -228,12 +288,16 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
               aria-label="Path"
               value={typed}
               maxLength={4096}
-              onChange={(e) => setTyped(e.target.value)}
+              onChange={(e) => {
+                edits.current++;
+                setTyped(e.target.value);
+              }}
               onKeyDown={onKeyDown}
               onFocus={(e) => e.currentTarget.select()}
             />
           </label>
-          <button type="submit" className="btn btn-small fs-go" disabled={loading}>
+          {/* Never disabled: a disabled default button blocks Enter, so a path typed while a folder loads was dropped. */}
+          <button type="submit" className="btn btn-small fs-go" aria-busy={loading} aria-label="Go">
             {loading ? <Icon name="spinner" size={14} spin /> : 'Go'}
           </button>
         </form>
@@ -341,7 +405,7 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
           <>
             <div className="list-card fs-entries">
               {shown.map((e) => (
-                <Row key={e.name} dir={listing.path} e={e} now={now} onOpen={go} />
+                <Row key={e.name} dir={listing.path} e={e} now={now} onOpen={go} onView={(p) => openViewer(p, space)} />
               ))}
             </div>
             {left > 0 && (
@@ -362,7 +426,7 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
   );
   const viewer = view ? (
     <Suspense fallback={null}>
-      <FileViewer key={view} path={view} onClose={() => back({ name: 'files' })} />
+      <FileViewer key={view} path={view} onClose={() => back(space ? { name: 'files', space } : { name: 'files' })} />
     </Suspense>
   ) : null;
   if (embedded)
@@ -377,8 +441,15 @@ export function FilesScreen({ embedded = false, view }: { embedded?: boolean; vi
       className="fs-screen"
       bar={
         <header className="topbar">
-          <BackButton onClick={() => back({ name: 'spaces' })} />
-          <span className="topbar-title">Files</span>
+          <BackButton onClick={() => back(space ? { name: 'space', spaceId: space } : { name: 'spaces' })} />
+          {from?.name ? (
+            <span className="topbar-stack">
+              <span className="topbar-title">Files</span>
+              <span className="topbar-sub">{from.name}</span>
+            </span>
+          ) : (
+            <span className="topbar-title">Files</span>
+          )}
         </header>
       }
     >

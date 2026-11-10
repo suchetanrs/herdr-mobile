@@ -138,6 +138,18 @@ export function spaceOf(world: World, id: string): SpaceView | null {
   return id === UNPLACED ? unplacedSpace(world) : (world.spaces[id] ?? null);
 }
 
+/**
+ * Where a space's files are, best first (as the bridge picks a new tab's folder): its first terminal's live
+ * folder, then the space's own. Empty for a remote space or one without a folder.
+ */
+export function spaceFolders(world: World, id: string): string[] {
+  const space = spaceOf(world, id);
+  if (!space || space.machine !== null) return [];
+  const first = space.tabIds.flatMap((t) => world.tabs[t]?.panes ?? []).find((p) => p.terminalId)?.terminalId;
+  const out = [first ? world.terminals[first]?.cwd : null, space.folder].filter((f): f is string => Boolean(f?.startsWith('/')));
+  return [...new Set(out)];
+}
+
 export interface TabGroup {
   tab: TabView | null;
   label: string;

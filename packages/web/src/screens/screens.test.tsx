@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import type { TerminalView } from '@herdr-mobile/protocol';
+import type { SpaceView, TerminalView } from '@herdr-mobile/protocol';
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { Profiler } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -110,6 +110,17 @@ describe('Space screen', () => {
     const review = screen.getByText('review').closest('.agent-row') as HTMLElement;
     expect(review.querySelector('.tab-no')?.textContent).toBe('2');
     expect(screen.getAllByText('review')).toHaveLength(1);
+  });
+
+  it("a folder icon opens the space's files (local spaces with a folder only)", () => {
+    renderWith(<SpaceScreen spaceId="spA" />, sampleWorld());
+    fireEvent.click(screen.getByRole('button', { name: 'Files in this space' }));
+    expect(window.location.hash).toBe('#/s/spA/files');
+    cleanup();
+    const w = sampleWorld();
+    w.spaces.spD = { ...(w.spaces.spD as SpaceView), folder: '' };
+    renderWith(<SpaceScreen spaceId="spD" />, w);
+    expect(screen.queryByRole('button', { name: 'Files in this space' })).toBeNull();
   });
 });
 

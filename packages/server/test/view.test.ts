@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
-import { FS_MARKDOWN_MAX, VIEWABLE, viewableOf } from '@herdr-mobile/protocol';
+import { FS_MARKDOWN_MAX, FS_TEXT_MAX, VIEWABLE, viewableOf } from '@herdr-mobile/protocol';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checkViewable, viewCsp } from '../src/files/view.js';
+import { checkViewable, looksLikeText, viewCsp } from '../src/files/view.js';
 import { startBridge, type TestBridge } from './helpers/bridge.js';
 import { rmDir, tmpDir } from './helpers/tmp.js';
 
@@ -26,11 +26,14 @@ describe('allowlist + sniffing', () => {
       'a.svg',
       'a.html',
       'a.htm',
-      'a.js',
       'a.xhtml',
-      'a.xml',
-      'a.txt',
-      'Makefile',
+      'a.SVG',
+      '.env',
+      'x.env',
+      '.env.local',
+      'a.exe',
+      'a.zip',
+      '.bashrc',
       '.png',
       'a.',
       'a.constructor',
@@ -39,6 +42,40 @@ describe('allowlist + sniffing', () => {
       expect(viewableOf(n), n).toBeNull();
     }
     expect(Object.keys(VIEWABLE)).not.toContain('svg');
+  });
+
+  it('code and text: by extension, by name, and names with no dot; all as text/plain', () => {
+    const exts =
+      'py yaml yml json jsonc toml ini cfg conf txt log csv tsv sh bash zsh fish js mjs cjs ts tsx jsx css scss rs go c h cpp hpp java kt rb lua sql xml';
+    for (const e of exts.split(' ')) {
+      expect(viewableOf(`a.${e}`), e).toEqual({ kind: 'code', type: 'text/plain; charset=utf-8' });
+      expect(viewableOf(`A.${e.toUpperCase()}`)?.kind, e).toBe('code');
+    }
+    for (const n of ['Dockerfile', 'Makefile', 'CMakeLists.txt', '.gitignore', '.dockerignore', '.env.example', 'LICENSE', 'run']) {
+      expect(viewableOf(n)?.kind, n).toBe('code');
+    }
+    expect(viewableOf('README.md')?.kind).toBe('markdown');
+  });
+
+  it('code must look like UTF-8 text: NUL or invalid UTF-8 refused; capped like Markdown', () => {
+    const ok = (name: string, head: Buffer) => checkViewable(name, head.length, head).ok;
+    expect(ok('a.py', Buffer.from('print("héllo ✓")\n'))).toBe(true);
+    expect(ok('a.py', Buffer.alloc(0))).toBe(true);
+    expect(ok('Dockerfile', Buffer.from('FROM node:22\n'))).toBe(true);
+    expect(ok('notes', Buffer.from('plain words\n'))).toBe(true);
+    // A pure-text page is fine as code: it goes out as text/plain, never as a page.
+    expect(ok('a.py', HTML)).toBe(true);
+    expect(ok('a.py', Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]))).toBe(false); // ELF
+    expect(ok('a.py', Buffer.from('abc\0def'))).toBe(false);
+    expect(ok('a.yaml', Buffer.from([0x61, 0xff, 0xfe, 0x62]))).toBe(false);
+    expect(ok('a.txt', Buffer.from([0x61, 0xc3, 0x28]))).toBe(false); // bad continuation byte
+    expect(ok('a.log', PNG)).toBe(false);
+    expect(ok('run', PNG)).toBe(false);
+    // A character cut off at the end of the sniffed bytes is not an error.
+    expect(looksLikeText(Buffer.from('ab✓').subarray(0, 4))).toBe(true);
+    expect(checkViewable('a.log', FS_TEXT_MAX, Buffer.from('x')).ok).toBe(true);
+    expect(checkViewable('a.log', FS_TEXT_MAX + 1, Buffer.from('x'))).toMatchObject({ ok: false, status: 413, code: 'too-big' });
+    expect(checkViewable('.env', 10, Buffer.from('A=1'))).toMatchObject({ ok: false, status: 415 });
   });
 
   it('the first bytes must match the extension', () => {
@@ -76,7 +113,7 @@ describe('allowlist + sniffing', () => {
   });
 
   it('CSP: sandboxed, nothing loads; PDF unsandboxed (viewer) but framable only by the app', () => {
-    for (const k of ['video', 'audio', 'image', 'markdown'] as const) {
+    for (const k of ['video', 'audio', 'image', 'markdown', 'code'] as const) {
       expect(viewCsp(k)).toMatch(/^sandbox; default-src 'none'/);
       expect(viewCsp(k)).toContain("frame-ancestors 'none'");
       expect(viewCsp(k)).not.toContain('script-src');
@@ -121,6 +158,13 @@ describe('GET /api/fs/view', () => {
     fs.writeFileSync(path.join(home, 'doc.pdf'), '%PDF-1.4\n%%EOF\n');
     fs.writeFileSync(path.join(home, 'notes.md'), '# Hi\n<script>alert(1)</script>\n');
     fs.writeFileSync(path.join(home, 'big.md'), Buffer.alloc(FS_MARKDOWN_MAX + 1, 0x61));
+    fs.writeFileSync(path.join(home, 'app.py'), 'print("<script>alert(1)</script>")\n');
+    fs.writeFileSync(path.join(home, 'Dockerfile'), 'FROM node:22\n');
+    fs.writeFileSync(path.join(home, 'bin.py'), Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0]), Buffer.alloc(100, 1)]));
+    // Not UTF-8 (Latin-1 é).
+    fs.writeFileSync(path.join(home, 'latin1.txt'), Buffer.from('caf\xe9\n', 'latin1'));
+    fs.writeFileSync(path.join(home, '.env'), 'SECRET=1\n');
+    fs.writeFileSync(path.join(home, 'big.log'), Buffer.alloc(FS_TEXT_MAX + 1, 0x61));
     const stream = new PassThrough();
     log = '';
     stream.on('data', (c: Buffer) => {
@@ -204,5 +248,29 @@ describe('GET /api/fs/view', () => {
     const big = await get(base, view('~/big.md'), { cookie });
     expect(big.status).toBe(413);
     expect(JSON.parse(big.body.toString())).toMatchObject({ code: 'too-big' });
+  });
+
+  it('code: text/plain with the sandbox CSP, nosniff, no-store; binaries, .env and too-big refused (still downloadable)', async () => {
+    const { base, cookie } = tb as TestBridge;
+    for (const p of ['~/app.py', '~/Dockerfile']) {
+      const r = await get(base, view(p), { cookie });
+      expect(r.status, p).toBe(200);
+      expect(r.headers['content-type']).toBe('text/plain; charset=utf-8');
+      expect(r.headers['content-disposition']).toMatch(/^inline;/);
+      expect(r.headers['x-content-type-options']).toBe('nosniff');
+      expect(r.headers['cache-control']).toBe('no-store');
+      expect(r.headers['content-security-policy']).toMatch(/^sandbox; default-src 'none'/);
+      expect(r.headers['x-frame-options']).toBe('DENY');
+    }
+    expect((await get(base, view('~/app.py'), { cookie })).body.toString()).toContain('<script>');
+    for (const p of ['~/bin.py', '~/latin1.txt', '~/.env']) {
+      const r = await get(base, view(p), { cookie });
+      expect(r.status, p).toBe(415);
+      expect(JSON.parse(r.body.toString())).toMatchObject({ code: 'not-viewable' });
+    }
+    expect((await get(base, view('~/big.log'), { cookie })).status).toBe(413);
+    const d = await get(base, `/api/fs/download?path=${encodeURIComponent('~/bin.py')}`, { cookie });
+    expect(d.status).toBe(200);
+    expect(d.headers['content-disposition']).toMatch(/^attachment;/);
   });
 });

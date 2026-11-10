@@ -1,6 +1,7 @@
 import { type ViewKind, viewableOf } from '@herdr-mobile/protocol';
-import { type PointerEvent, useEffect, useRef, useState, type WheelEvent } from 'react';
+import { type CSSProperties, type PointerEvent, useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from 'react';
 import { Icon } from '../components/Icon';
+import { highlight, htmlLines, langLabel, langOfPath } from '../conversation/highlight';
 import { Markdown } from '../conversation/Markdown';
 import { downloadUrl, viewUrl } from '../lib/files';
 import '../styles/conversation.css';
@@ -89,11 +90,14 @@ function ZoomImage({ src, name, onError }: { src: string; name: string; onError:
   );
 }
 
-/** A Markdown file, fetched as text and rendered like a conversation message (raw HTML shows as text). */
-function MarkdownFile({ path, name }: { path: string; name: string }) {
-  const [state, setState] = useState<{ text: string } | { error: string } | null>(null);
+type TextState = { text: string } | { error: string } | null;
+
+/** A text file fetched from the bridge (plain text, never run), or why not. */
+function useTextFile(path: string): TextState {
+  const [state, setState] = useState<TextState>(null);
   useEffect(() => {
     let live = true;
+    setState(null);
     (async () => {
       try {
         const r = await fetch(viewUrl(path), { cache: 'no-store', credentials: 'same-origin' });
@@ -112,16 +116,96 @@ function MarkdownFile({ path, name }: { path: string; name: string }) {
       live = false;
     };
   }, [path]);
-  if (!state)
-    return (
-      <div className="ns-hint ns-loading">
-        <Icon name="spinner" size={14} spin /> Loading…
-      </div>
-    );
+  return state;
+}
+
+function Loading() {
+  return (
+    <div className="ns-hint ns-loading">
+      <Icon name="spinner" size={14} spin /> Loading…
+    </div>
+  );
+}
+
+/** A Markdown file, fetched as text and rendered like a conversation message (raw HTML shows as text). */
+function MarkdownFile({ path, name }: { path: string; name: string }) {
+  const state = useTextFile(path);
+  if (!state) return <Loading />;
   if ('error' in state) return <CantShow path={path} name={name} text={state.error} />;
   return (
     <div className="scroll fv-doc">
       <Markdown text={state.text} className="fv-md" />
+    </div>
+  );
+}
+
+/** Files bigger than this show as plain text (highlighting them would stall a phone). */
+const HIGHLIGHT_MAX = 200_000;
+/** Lines added to the page at a time; more as the reader scrolls near the end. */
+const LINES_STEP = 2000;
+
+/** A code or text file: read only, monospace, line numbers, highlighted when small enough, long lines scroll. */
+function CodeFile({ path, name }: { path: string; name: string }) {
+  const state = useTextFile(path);
+  const [wrap, setWrap] = useState(false);
+  const [shown, setShown] = useState(LINES_STEP);
+  const io = useRef<IntersectionObserver | null>(null);
+  const view = useMemo(() => {
+    if (!state || 'error' in state) return null;
+    let text = state.text.replace(/\r\n?/g, '\n');
+    if (text.endsWith('\n')) text = text.slice(0, -1);
+    const lang = langOfPath(name);
+    const html = highlight(text, lang, HIGHLIGHT_MAX);
+    return { lang: html === null ? null : lang, html: html !== null, lines: html !== null ? htmlLines(html) : text.split('\n') };
+  }, [state, name]);
+  const total = view?.lines.length ?? 0;
+  // Each "more" button (a new one per step) loads the next lines once it nears the screen.
+  const more = useCallback((el: HTMLButtonElement | null) => {
+    io.current?.disconnect();
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    io.current = new IntersectionObserver(
+      (es) => {
+        if (es.some((e) => e.isIntersecting)) setShown((n) => n + LINES_STEP);
+      },
+      { rootMargin: '800px' },
+    );
+    io.current.observe(el);
+  }, []);
+  useEffect(() => () => io.current?.disconnect(), []);
+  if (!state) return <Loading />;
+  if ('error' in state || !view) return <CantShow path={path} name={name} text={'error' in state ? state.error : ''} />;
+  const digits = String(total).length;
+  return (
+    <div className="fv-codefile">
+      <div className="cv-bar">
+        <span className="cv-info">
+          {view.lang ? langLabel(view.lang) : 'Plain text'} · {total.toLocaleString()} {total === 1 ? 'line' : 'lines'}
+        </span>
+        <button type="button" className={`cv-wrap-btn${wrap ? ' on' : ''}`} aria-pressed={wrap} onClick={() => setWrap((w) => !w)}>
+          Wrap
+        </button>
+      </div>
+      <div className={`cv-scroll${wrap ? ' cv-wrap' : ''}`}>
+        <div className={`cv-code${view.html ? ' hljs' : ''}`} style={{ '--cv-digits': `${digits}ch` } as CSSProperties}>
+          {view.lines.slice(0, shown).map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: lines never move; the index is the line number
+            <div className="cv-line" key={i}>
+              <span className="cv-ln">{i + 1}</span>
+              {view.html ? (
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: highlight.js output (it escapes the text), split into lines.
+                <span className="cv-text" dangerouslySetInnerHTML={{ __html: l }} />
+              ) : (
+                <span className="cv-text">{l}</span>
+              )}
+            </div>
+          ))}
+        </div>
+        {shown < total && (
+          <button type="button" key={shown} ref={more} className="cv-more" onClick={() => setShown((n) => n + LINES_STEP)}>
+            Show more ({(total - shown).toLocaleString()} lines left)
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -158,6 +242,8 @@ function Body({ path, name, kind }: { path: string; name: string; kind: ViewKind
       return <ZoomImage src={src} name={name} onError={() => setFailed(true)} />;
     case 'markdown':
       return <MarkdownFile path={path} name={name} />;
+    case 'code':
+      return <CodeFile key={path} path={path} name={name} />;
     case 'pdf':
       // The browser's own PDF viewer, framed (same origin, so the session cookie goes along; a new tab from the
       // home-screen app would open without it). Browsers without an inline viewer (Android Chrome) get links.
@@ -183,7 +269,8 @@ function Body({ path, name, kind }: { path: string; name: string; kind: ViewKind
 
 /**
  * A file shown full screen over the Files list: video and audio in the browser's own players (streamed in
- * ranges, so they seek), images fitted with pinch zoom, PDFs in the browser's viewer, Markdown rendered.
+ * ranges, so they seek), images fitted with pinch zoom, PDFs in the browser's viewer, Markdown rendered, code
+ * and other text read only with line numbers and highlighting.
  * Close (or Back / swipe back) returns to the list.
  */
 export function FileViewer({ path, onClose }: { path: string; onClose: () => void }) {

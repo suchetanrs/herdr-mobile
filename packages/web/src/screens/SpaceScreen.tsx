@@ -4,13 +4,13 @@ import { AddButton, AddToSpace } from '../components/AddToSpace';
 import { AgentRow } from '../components/AgentRow';
 import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
-import { AlertsButton, BackButton, Screen } from '../components/Screen';
+import { AlertsButton, BackButton, FilesButton, Screen } from '../components/Screen';
 import { SpaceTile } from '../components/SpaceTile';
 import { StatusGlyph } from '../components/Status';
 import { useDrafts, useNow, useWorld } from '../hooks/app';
 import { useTapGuard } from '../hooks/gestures';
 import { folder, plural } from '../lib/format';
-import { leadOf, program, spaceCounts, spaceOf, spaceTabs, type TabGroup, terminalName } from '../lib/model';
+import { leadOf, program, spaceCounts, spaceFolders, spaceOf, spaceTabs, type TabGroup, terminalName } from '../lib/model';
 import { back } from '../lib/router';
 
 /** Herdr's tab pill: program icon, the tab's name, a spinner while working, a dot when it wants you. */
@@ -186,6 +186,7 @@ export function SpaceScreen({ spaceId, embedded = false }: { spaceId: string; em
           </span>
           <span className="spacer" />
           <StatusGlyph status={space.status} />
+          {spaceFolders(world, space.id).length > 0 && <FilesButton space={space.id} />}
           {space.machine === null && <AddButton onClick={() => setAdding(true)} />}
           <AlertsButton />
         </header>

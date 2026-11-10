@@ -16,6 +16,8 @@ export interface FsEntry {
   size: number | null;
   /** Last modified, ms since the epoch. */
   mtime: number | null;
+  /** Git ignores it (a .gitignore, .git/info/exclude or core.excludesFile; or it is in an ignored folder, or is `.git`). Added in task 32; older bridges leave it out. */
+  ignored?: boolean;
 }
 
 export interface FsListing {
@@ -64,11 +66,14 @@ export const FS_SCAN_MAX = 20_000;
 export const FS_PATH_MAX = 4096;
 
 /** How the in-app viewer shows a file. */
-export type ViewKind = 'video' | 'audio' | 'image' | 'pdf' | 'markdown';
+export type ViewKind = 'video' | 'audio' | 'image' | 'pdf' | 'markdown' | 'code';
+
+/** Code and other text: always sent as plain text, so a browser never runs it. */
+const CODE = { kind: 'code', type: 'text/plain; charset=utf-8' } as const;
 
 /**
  * The only files the bridge sends inline, by extension (lower case), with the type it sends them as. The
- * bridge also checks the first bytes; nothing else (HTML, SVG, scripts...) is ever sent inline.
+ * bridge also checks the first bytes; HTML and SVG are never sent inline, scripts only as plain text.
  */
 export const VIEWABLE: Readonly<Record<string, { kind: ViewKind; type: string }>> = {
   mp4: { kind: 'video', type: 'video/mp4' },
@@ -93,15 +98,40 @@ export const VIEWABLE: Readonly<Record<string, { kind: ViewKind; type: string }>
   pdf: { kind: 'pdf', type: 'application/pdf' },
   md: { kind: 'markdown', type: 'text/plain; charset=utf-8' },
   markdown: { kind: 'markdown', type: 'text/plain; charset=utf-8' },
+  ...Object.fromEntries(
+    'py yaml yml json jsonc toml ini cfg conf txt log csv tsv sh bash zsh fish js mjs cjs ts tsx jsx css scss rs go c h cpp hpp java kt rb lua sql xml'
+      .split(' ')
+      .map((ext) => [ext, CODE]),
+  ),
 };
 
-/** The viewer entry for a file name, or null (download it instead). */
+/** Text files known by their whole (lower-case) name. `.env` itself is not one: it holds secrets. */
+const CODE_NAMES: ReadonlySet<string> = new Set([
+  'dockerfile',
+  'containerfile',
+  'makefile',
+  'gnumakefile',
+  'cmakelists.txt',
+  '.gitignore',
+  '.dockerignore',
+  '.env.example',
+]);
+
+/**
+ * The viewer entry for a file name, or null (download it instead). Text by name (Dockerfile, .gitignore...)
+ * and names with no dot at all count as code; the bridge refuses any that don't start like UTF-8 text.
+ */
 export function viewableOf(name: string): { kind: ViewKind; type: string } | null {
+  if (CODE_NAMES.has(name.toLowerCase()) || (name.length > 0 && !name.includes('.'))) return CODE;
   const dot = name.lastIndexOf('.');
   if (dot <= 0 || dot === name.length - 1) return null;
   const ext = name.slice(dot + 1).toLowerCase();
   return Object.hasOwn(VIEWABLE, ext) ? (VIEWABLE[ext] ?? null) : null;
 }
 
-/** Largest Markdown file the viewer is sent (it renders it whole). */
-export const FS_MARKDOWN_MAX = 2 * 1024 * 1024;
+/** Largest text (Markdown or code) file the viewer is sent (it renders it whole). */
+export const FS_TEXT_MAX = 2 * 1024 * 1024;
+export const FS_MARKDOWN_MAX = FS_TEXT_MAX;
+
+/** Whether a viewer kind is text the app fetches and renders itself. */
+export const isTextKind = (kind: ViewKind) => kind === 'markdown' || kind === 'code';

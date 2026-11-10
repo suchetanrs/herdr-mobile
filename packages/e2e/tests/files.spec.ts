@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,7 +20,7 @@ test.beforeAll(() => {
   fs.rmSync(FILES, { recursive: true, force: true });
   fs.mkdirSync(path.join(FILES, 'inner folder'), { recursive: true });
   fs.writeFileSync(path.join(FILES, NAME), BYTES);
-  fs.writeFileSync(path.join(FILES, 'notes.txt'), 'plain notes\n');
+  fs.writeFileSync(path.join(FILES, 'notes.dat'), 'plain notes\n');
   fs.writeFileSync(path.join(FILES, '.hidden-file'), 'hidden\n');
   fs.writeFileSync(path.join(FILES, 'inner folder', 'deep.txt'), 'deep\n');
 });
@@ -103,9 +104,9 @@ test('folder icon -> home -> into a folder -> crumb back -> path bar to a folder
   await expect(page.locator('.fs-notice')).toContainText(`Downloading ${NAME}`);
   // A tap on a file row downloads it too.
   const viaRow = page.waitForEvent('download');
-  await row(page, 'notes.txt').click();
+  await row(page, 'notes.dat').click();
   const d2 = await viaRow;
-  expect(d2.suggestedFilename()).toBe('notes.txt');
+  expect(d2.suggestedFilename()).toBe('notes.dat');
   expect(fs.readFileSync(await d2.path(), 'utf8')).toBe('plain notes\n');
   // The page stayed where it was.
   await expect(page).toHaveURL(/#\/files$/);
@@ -148,7 +149,47 @@ test('folder icon -> home -> into a folder -> crumb back -> path bar to a folder
 });
 
 test('downloads need the session: a signed-out page gets 401, other sites 403', async ({ request }) => {
-  const url = `${E2E_URL}/api/fs/download?path=${encodeURIComponent(path.join(FILES, 'notes.txt'))}`;
+  const url = `${E2E_URL}/api/fs/download?path=${encodeURIComponent(path.join(FILES, 'notes.dat'))}`;
   expect((await request.get(url)).status()).toBe(401);
   expect((await request.get(url, { headers: { 'sec-fetch-site': 'cross-site' } })).status()).toBe(403);
+});
+
+test('git-ignored entries are dimmed (.gitignore, info/exclude, inside an ignored folder, .git), tracked ones not; still navigable', async ({
+  page,
+}, info) => {
+  const repo = path.join(WORK, 'files-git');
+  fs.rmSync(repo, { recursive: true, force: true });
+  fs.mkdirSync(path.join(repo, 'build', 'deep'), { recursive: true });
+  fs.mkdirSync(path.join(repo, 'src'));
+  const git = (...a: string[]) => execFileSync('git', ['-C', repo, ...a], { stdio: 'ignore' });
+  git('init', '-q');
+  fs.writeFileSync(path.join(repo, '.gitignore'), 'build/\n*.log\n');
+  fs.appendFileSync(path.join(repo, '.git', 'info', 'exclude'), 'mine.txt\n');
+  for (const f of ['build/deep/out.bin', 'debug.log', 'tracked.log', 'mine.txt', 'README.md', 'src/app.ts'])
+    fs.writeFileSync(path.join(repo, f), 'x\n');
+  git('add', '-f', 'tracked.log', 'README.md');
+  try {
+    await openFiles(page, info.project.name);
+    await page.getByRole('button', { name: /Hidden/ }).click();
+    await go(page, repo);
+    await expect(row(page, 'README.md')).toBeVisible();
+    const dim = async (name: string) => (await row(page, name).getAttribute('class'))?.includes('fs-ignored') ?? false;
+    for (const n of ['build', 'debug.log', 'mine.txt', '.git']) expect(await dim(n), n).toBe(true);
+    for (const n of ['src', 'README.md', 'tracked.log', '.gitignore']) expect(await dim(n), n).toBe(false);
+    const color = (name: string) =>
+      row(page, name)
+        .locator('.fs-name')
+        .evaluate((el) => getComputedStyle(el).color);
+    expect(await color('debug.log')).not.toBe(await color('README.md'));
+    if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `files-${info.project.name}-ignored.png`) });
+    await row(page, 'build').click();
+    await row(page, 'deep').click();
+    await expect(row(page, 'out.bin')).toHaveClass(/fs-ignored/);
+    const dl = page.waitForEvent('download');
+    await row(page, 'out.bin').click();
+    expect((await dl).suggestedFilename()).toBe('out.bin');
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('hm.files.hidden')).catch(() => {});
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });

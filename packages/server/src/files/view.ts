@@ -1,7 +1,18 @@
-import { FS_MARKDOWN_MAX, type ViewKind, viewableOf } from '@herdr-mobile/protocol';
+import { FS_TEXT_MAX, isTextKind, type ViewKind, viewableOf } from '@herdr-mobile/protocol';
 
-/** Bytes read from the start of a file to check what it is. */
-export const SNIFF_BYTES = 16;
+/** Bytes read from the start of a file to check what it is (text: enough to tell a binary). */
+export const SNIFF_BYTES = 8192;
+
+/** Text: no NUL byte and valid UTF-8 (a character cut off at the end of the sniffed bytes is fine). */
+export function looksLikeText(head: Buffer): boolean {
+  if (head.includes(0)) return false;
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(head, { stream: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const ascii = (head: Buffer, at: number, text: string) => head.subarray(at, at + text.length).toString('latin1') === text;
 /** ISO base media (mp4, mov, m4a, heic, avif): a box type at offset 4. */
@@ -42,18 +53,19 @@ export type ViewCheck =
 
 /**
  * Whether a file may be sent inline: its extension is on the allowlist (VIEWABLE) AND its first bytes are
- * what that extension says (a page renamed `x.png` is refused); Markdown only up to FS_MARKDOWN_MAX.
+ * what that extension says (a page renamed `x.png` is refused; code must look like UTF-8 text); text only up
+ * to FS_TEXT_MAX.
  */
 export function checkViewable(name: string, size: number, head: Buffer): ViewCheck {
   const entry = viewableOf(name);
   const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
   // An extension without a check here is refused (fails closed).
-  const magic = entry && Object.hasOwn(MAGIC, ext) ? MAGIC[ext] : undefined;
+  const magic = entry?.kind === 'code' ? looksLikeText : entry && Object.hasOwn(MAGIC, ext) ? MAGIC[ext] : undefined;
   if (!entry || !magic?.(head)) {
     return { ok: false, status: 415, code: 'not-viewable', error: 'This file can’t be shown here; download it instead' };
   }
-  if (entry.kind === 'markdown' && size > FS_MARKDOWN_MAX) {
-    return { ok: false, status: 413, code: 'too-big', error: 'This Markdown file is too big to show here; download it instead' };
+  if (isTextKind(entry.kind) && size > FS_TEXT_MAX) {
+    return { ok: false, status: 413, code: 'too-big', error: 'This file is too big to show here; download it instead' };
   }
   return { ok: true, kind: entry.kind, type: entry.type };
 }

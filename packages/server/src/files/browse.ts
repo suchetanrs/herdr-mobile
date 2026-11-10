@@ -10,6 +10,7 @@ import {
   type FsKind,
   type FsListing,
 } from '@herdr-mobile/protocol';
+import { gitIgnored, type IgnoreOptions } from './ignored.js';
 
 /** A refusal with its HTTP status and the code the page shows a message for. */
 export class FsFailure extends Error {
@@ -63,6 +64,8 @@ export interface BrowserOptions {
   privateFiles?: readonly string[];
   /** Test hook: where /proc, /sys, /dev are. */
   pseudoRoots?: readonly string[];
+  /** How entries git ignores are found (test hook). */
+  ignore?: IgnoreOptions;
 }
 
 /**
@@ -200,9 +203,16 @@ export class FileBrowser {
           size = e.kind === 'file' ? st.size : null;
           mtime = st.mtimeMs;
         } catch {}
-        return { name: e.name, kind: e.kind, link: e.link, size, mtime };
+        return { name: e.name, kind: e.kind, link: e.link, size, mtime, ignored: false };
       }),
     );
+    const ignored = await gitIgnored(
+      dir,
+      // git sees a symlink as a file (and refuses `link/` for the whole batch).
+      entries.map((e) => ({ name: e.name, dir: e.kind === 'dir' && !e.link })),
+      this.opts.ignore,
+    );
+    for (const e of entries) e.ignored = ignored.has(e.name);
     return {
       kind: 'dir',
       path: dir,

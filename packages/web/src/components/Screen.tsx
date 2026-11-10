@@ -23,10 +23,17 @@ export function BackButton({ onClick, label = 'Back' }: { onClick: () => void; l
   );
 }
 
-/** The computer's files: browse and download. */
-export function FilesButton({ className = 'icon-btn', size = 18 }: { className?: string; size?: number }) {
+/** The computer's files: browse and download (`space`: starting in that space's folder). */
+export function FilesButton({ className = 'icon-btn', size = 18, space }: { className?: string; size?: number; space?: string }) {
+  const label = space ? 'Files in this space' : 'Files';
   return (
-    <button type="button" className={className} onClick={() => navigate({ name: 'files' })} aria-label="Files" title="Files">
+    <button
+      type="button"
+      className={className}
+      onClick={() => navigate(space ? { name: 'files', space } : { name: 'files' })}
+      aria-label={label}
+      title={label}
+    >
       <Icon name="folder" size={size} />
     </button>
   );

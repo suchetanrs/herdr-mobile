@@ -19,6 +19,7 @@ import {
   pinnedAgents,
   program,
   shownStatus,
+  spaceFolders,
   spaceIdOf,
   spaceOf,
   spaceTabs,
@@ -163,7 +164,8 @@ function StatusBar({ world }: { world: World }) {
 export function Desktop({ route }: { route: Route }) {
   const world = useWorld();
   const agent = route.name === 'agent' ? world.terminals[route.terminalId] : undefined;
-  const activeSpace = route.name === 'space' ? route.spaceId : agent ? spaceIdOf(agent) : null;
+  const activeSpace =
+    route.name === 'space' ? route.spaceId : route.name === 'files' ? (route.space ?? null) : agent ? spaceIdOf(agent) : null;
   const space = activeSpace ? spaceOf(world, activeSpace) : null;
   const tabs = activeSpace ? spaceTabs(world, activeSpace) : [];
   const [adding, setAdding] = useState<string | null>(null);
@@ -207,7 +209,7 @@ export function Desktop({ route }: { route: Route }) {
       </aside>
       <main className="main">
         <div className="tabbar">
-          {space && tabs.some((g) => g.tab) ? (
+          {space && route.name !== 'files' && tabs.some((g) => g.tab) ? (
             <TabPillRow
               groups={tabs}
               activeTab={agent?.tabId ?? null}
@@ -225,11 +227,16 @@ export function Desktop({ route }: { route: Route }) {
                   : route.name === 'new'
                     ? 'New space'
                     : route.name === 'files'
-                      ? 'Files'
+                      ? space
+                        ? `Files · ${space.name}`
+                        : 'Files'
                       : space
                         ? space.name
                         : 'All spaces'}
             </span>
+          )}
+          {space && (route.name === 'space' || route.name === 'agent') && spaceFolders(world, space.id).length > 0 && (
+            <FilesButton className="icon-btn sm" size={16} space={space.id} />
           )}
           {space && space.machine === null && (route.name === 'space' || route.name === 'agent') && (
             <AddButton className="icon-btn sm" onClick={() => setAdding(space.id)} />
@@ -249,7 +256,7 @@ export function Desktop({ route }: { route: Route }) {
           ) : route.name === 'new' ? (
             <NewSpaceScreen embedded />
           ) : route.name === 'files' ? (
-            <FilesScreen embedded view={route.view} />
+            <FilesScreen key={route.space ?? ''} embedded view={route.view} space={route.space} />
           ) : (
             <SpacesScreen embedded />
           )}

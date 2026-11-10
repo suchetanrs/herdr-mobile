@@ -80,6 +80,18 @@ test.beforeAll(() => {
   );
   fs.writeFileSync(path.join(DIR, 'logo.svg'), '<svg xmlns="http://www.w3.org/2000/svg"><script>window.__svgPwned = 1</script></svg>');
   fs.writeFileSync(path.join(DIR, 'page.html'), '<!doctype html><script>window.__htmlPwned = 1</script>');
+  fs.writeFileSync(
+    path.join(DIR, 'app.py'),
+    `import os\n\n\ndef greet(name: str) -> str:\n    """Say hello.\n    Two lines."""\n    return "<script>window.__pyPwned = 1</script>" + name  # ${'long '.repeat(40)}\n\n\nprint(greet(os.getcwd()))\n`,
+  );
+  fs.writeFileSync(path.join(DIR, 'config.yaml'), 'server:\n  port: 8787\n  hosts:\n    - "a"\n    - b # comment\nenabled: true\n');
+  fs.writeFileSync(
+    path.join(DIR, 'big.log'),
+    Array.from({ length: 8000 }, (_, i) => `2026-11-11T01:00:${String(i % 60).padStart(2, '0')} INFO worker ${i} did a thing ok`).join(
+      '\n',
+    ),
+  );
+  fs.writeFileSync(path.join(DIR, 'bin.py'), Buffer.concat([Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]), Buffer.alloc(200)]));
 });
 test.afterAll(() => fs.rmSync(DIR, { recursive: true, force: true }));
 
@@ -212,6 +224,67 @@ test('each viewable kind opens in the viewer; video seeks over Range; md renders
     expect((await dl).suggestedFilename()).toBe(name);
     await expect(page).toHaveURL(/#\/files$/);
   }
+  expect(await page.evaluate(() => Object.keys(window).filter((k) => k.endsWith('Pwned')))).toEqual([]);
+});
+
+test('code: py/yaml highlighted with line numbers, a big log plain, a binary renamed .py downloads instead', async ({ page }, info) => {
+  const project = info.project.name;
+  await openFolder(page, project);
+
+  await open(page, 'app.py');
+  const code = page.locator('.file-viewer .cv-code');
+  await expect(code).toHaveClass(/hljs/);
+  await expect(code.locator('.hljs-keyword').first()).toHaveText('import');
+  await expect(code.locator('.cv-line')).toHaveCount(10);
+  await expect(code.locator('.cv-ln').first()).toHaveText('1');
+  await expect(code.locator('.cv-ln').last()).toHaveText('10');
+  expect(await code.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('JetBrains Mono');
+  await expect(page.locator('.file-viewer .cv-info')).toHaveText('Python · 10 lines');
+  // The <script> is text, and never runs.
+  await expect(code).toContainText('<script>window.__pyPwned = 1</script>');
+  expect(await page.locator('.file-viewer script').count()).toBe(0);
+  // Long lines scroll sideways; Wrap folds them.
+  const scroller = page.locator('.file-viewer .cv-scroll');
+  expect(await scroller.evaluate((el) => el.scrollWidth > el.clientWidth + 50)).toBe(true);
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `viewer-${project}-py.png`) });
+  await page.locator('.file-viewer').getByRole('button', { name: 'Wrap' }).click();
+  await expect.poll(() => scroller.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await close(page);
+
+  await open(page, 'config.yaml');
+  await expect(page.locator('.file-viewer .cv-code.hljs .hljs-attr').first()).toHaveText('server:');
+  await expect(page.locator('.file-viewer .cv-line')).toHaveCount(6);
+  await expect(page.locator('.file-viewer .cv-info')).toHaveText('YAML · 6 lines');
+  if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `viewer-${project}-yaml.png`) });
+  await close(page);
+
+  // Over the highlighting limit: plain text, the first lines first, more as it scrolls.
+  await open(page, 'big.log');
+  const log = page.locator('.file-viewer .cv-code');
+  await expect(log.locator('.cv-line').first()).toBeVisible();
+  await expect(log).not.toHaveClass(/hljs/);
+  await expect(page.locator('.file-viewer .cv-info')).toHaveText('Plain text · 8,000 lines');
+  expect(await log.locator('.cv-line').count()).toBe(2000);
+  await scroller.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expect.poll(() => log.locator('.cv-line').count()).toBeGreaterThan(2000);
+  await close(page);
+
+  // A binary renamed .py: the bridge refuses it, the viewer offers the download.
+  await open(page, 'bin.py');
+  await expect(page.locator('.file-viewer')).toContainText('Can’t show this here');
+  const dl = page.waitForEvent('download');
+  await page
+    .locator('.file-viewer')
+    .getByRole('link', { name: /Download instead/ })
+    .click();
+  expect((await dl).suggestedFilename()).toBe('bin.py');
+  const r = await page.request.get(`${E2E_URL}/api/fs/view?path=${encodeURIComponent(path.join(DIR, 'bin.py'))}`);
+  expect(r.status()).toBe(415);
+  const py = await page.request.get(`${E2E_URL}/api/fs/view?path=${encodeURIComponent(path.join(DIR, 'app.py'))}`);
+  expect(py.headers()['content-type']).toBe('text/plain; charset=utf-8');
+  expect(py.headers()['content-security-policy']).toMatch(/^sandbox; default-src 'none'/);
+  await close(page);
+  await page.waitForTimeout(300);
   expect(await page.evaluate(() => Object.keys(window).filter((k) => k.endsWith('Pwned')))).toEqual([]);
 });
 
