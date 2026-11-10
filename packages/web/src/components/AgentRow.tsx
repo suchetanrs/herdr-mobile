@@ -6,6 +6,7 @@ import { navigate } from '../lib/router';
 import { Icon } from './Icon';
 import { ProgramIcon } from './ProgramIcon';
 import { StatusGlyph } from './Status';
+import { unreadId } from './UnreadMenu';
 
 /** Tree lines in front of a sub-agent (agents mod `subRow`). */
 export function TreeLines({ lines }: { lines: string[] }) {
@@ -53,6 +54,7 @@ export const AgentRow = memo(function AgentRow({
       type="button"
       className={`agent-row${sub ? ' sub' : ''}${active ? ' active' : ''}${status === null ? ' plain' : ''}`}
       onClick={() => (onOpen ? onOpen(t) : navigate({ name: 'agent', terminalId: t.id }))}
+      data-press={unreadId(t)}
     >
       {sub && <TreeLines lines={row.lines} />}
       <ProgramIcon program={program(t)} size={sub ? 14 : 16} tile={!sub} />

@@ -17,6 +17,7 @@ import { NotifierHub } from './notify/notifier.js';
 import { NtfySink } from './notify/ntfy.js';
 import { ProgramNames } from './programs.js';
 import { SeenSync } from './seen/sync.js';
+import { markUnread } from './seen/unread.js';
 import { InstalledAgents, userShell } from './spaces/agents.js';
 import { HerdrApp } from './spaces/app.js';
 import { SpaceCreator } from './spaces/create.js';
@@ -219,16 +220,12 @@ export function createBridge(config: Config): Bridge {
   store.on('patch', () => conversations.refresh());
   store.on('patch', () => hub.refreshSizes());
 
+  const writeSeen = async (id: string, turn: number) => {
+    await client.call('terminal.label', { terminal: id, labels: { 'herdr.seen': String(turn) } });
+  };
+  const isLive = (id: string) => store.terminal(id)?.state === 'live';
   const seen = config.seenSync
-    ? new SeenSync({
-        world: () => store.world,
-        looking: () => store.lookingIds(),
-        isLive: (id) => store.terminal(id)?.state === 'live',
-        write: async (id, turn) => {
-          await client.call('terminal.label', { terminal: id, labels: { 'herdr.seen': String(turn) } });
-        },
-        logger,
-      })
+    ? new SeenSync({ world: () => store.world, looking: () => store.lookingIds(), isLive, write: writeSeen, logger })
     : null;
   if (seen) {
     store.on('looking', () => seen.update());
@@ -242,6 +239,7 @@ export function createBridge(config: Config): Bridge {
     world: () => store.world,
     recentAlerts: () => engine.recent,
     onLooking: (clientId, ids) => store.setLooking(clientId, ids),
+    onMarkUnread: (id) => markUnread({ world: () => store.world, isLive, write: writeSeen }, id),
     terminals: (sink) => new TerminalSession({ hub, logger }, sink),
     conversations: (send) => new ConversationSession({ hub: conversations, logger }, send),
     heartbeatMs: config.heartbeatMs,

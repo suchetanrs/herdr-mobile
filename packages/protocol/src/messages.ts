@@ -97,12 +97,25 @@ export const LOOKING_TTL_MS = 10_000;
 /** Most terminal ids one `looking` may name. */
 export const LOOKING_MAX_IDS = 64;
 
-export type ClientMessage = HelloMessage | PingMessage | LookingMessage | TerminalClientMessage | ConversationClientMessage;
+/** "Mark as unread": the bridge lowers the agent's `herdr.seen` to turn - 1 (seen.ts canMarkUnread decides). */
+export interface MarkUnreadMessage {
+  t: 'unread';
+  terminalId: string;
+}
+
+export type ClientMessage =
+  | HelloMessage
+  | PingMessage
+  | LookingMessage
+  | MarkUnreadMessage
+  | TerminalClientMessage
+  | ConversationClientMessage;
 
 const CLIENT_TYPES = new Set([
   'hello',
   'ping',
   'looking',
+  'unread',
   'term.open',
   'term.close',
   'term.resync',
@@ -135,6 +148,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
   const m = v as Record<string, unknown>;
   if (t === 'hello' && typeof m.v !== 'number') return null;
   if (t === 'looking' && !(isStrings(m.terminalIds) && m.terminalIds.length <= LOOKING_MAX_IDS)) return null;
+  if (t === 'unread' && !isId(m.terminalId)) return null;
   if (t === 'term.open' && !(isInt(m.req) && typeof m.terminalId === 'string' && isOptInt(m.history))) return null;
   if ((t === 'term.close' || t === 'term.resync') && !isInt(m.stream)) return null;
   if ((t === 'term.keys' || t === 'term.answer') && !(isOptInt(m.req) && typeof m.terminalId === 'string' && isStrings(m.keys)))

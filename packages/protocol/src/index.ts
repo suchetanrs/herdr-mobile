@@ -4,6 +4,7 @@ export * from './files.js';
 export * from './history.js';
 export * from './messages.js';
 export * from './patch.js';
+export * from './seen.js';
 export * from './spaces.js';
 export * from './terminal.js';
 export * from './version.js';

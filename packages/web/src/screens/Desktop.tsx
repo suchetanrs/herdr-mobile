@@ -8,6 +8,7 @@ import { ProgramIcon } from '../components/ProgramIcon';
 import { AlertsButton, FilesButton } from '../components/Screen';
 import { SpaceTile } from '../components/SpaceTile';
 import { StatusGlyph } from '../components/Status';
+import { unreadId } from '../components/UnreadMenu';
 import { useNow, useWorld } from '../hooks/app';
 import { duration } from '../lib/format';
 import {
@@ -97,6 +98,7 @@ function SidebarAgents({ world, activeAgent }: { world: World; activeAgent: stri
         key={t.id}
         className={`sb-agent${depth ? ' sub' : ''}${activeAgent === t.id ? ' active' : ''}${shownStatus(t) === 'idle' && activeAgent !== t.id ? ' idle' : ''}`}
         onClick={() => navigate({ name: 'agent', terminalId: t.id })}
+        data-press={unreadId(t)}
       >
         {depth > 0 && <TreeLines lines={lines} />}
         <ProgramIcon program={program(t)} size={depth ? 14 : 16} />

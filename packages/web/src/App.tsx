@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Splash, Toasts } from './components/Chrome';
+import { UnreadMenu } from './components/UnreadMenu';
 import { useConn, useLight, useLive, useServices } from './hooks/app';
 import { DESKTOP, useMediaQuery, useVisualViewport } from './hooks/dom';
 import { useEdgeBack } from './hooks/gestures';
@@ -134,6 +135,7 @@ export function App() {
     <div className={`app${!live && conn.everSynced ? ' stale' : ''}`}>
       {content}
       <Toasts />
+      {conn.everSynced && <UnreadMenu />}
     </div>
   );
 }

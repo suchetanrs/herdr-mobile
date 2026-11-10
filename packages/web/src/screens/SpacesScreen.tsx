@@ -8,6 +8,7 @@ import { PromptProbe } from '../components/PromptProbe';
 import { AlertsButton, FilesButton, Screen, SettingsButton } from '../components/Screen';
 import { SpaceTile } from '../components/SpaceTile';
 import { StatusGlyph } from '../components/Status';
+import { unreadId } from '../components/UnreadMenu';
 import { useDrafts, useLive, useNow, useServices, useWorld } from '../hooks/app';
 import { duration, plural } from '../lib/format';
 import {
@@ -51,7 +52,7 @@ export const AgentLine = memo(function AgentLine({ line, now }: { line: LineData
   const { t } = line;
   const status = shownStatus(t);
   return (
-    <button type="button" className="agent-line" onClick={() => navigate({ name: 'agent', terminalId: t.id })}>
+    <button type="button" className="agent-line" onClick={() => navigate({ name: 'agent', terminalId: t.id })} data-press={unreadId(t)}>
       <ProgramIcon program={program(t)} size={15} />
       <span className="agent-line-name">
         <span className="truncate">{line.name}</span>

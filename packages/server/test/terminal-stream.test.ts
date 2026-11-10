@@ -357,6 +357,38 @@ describe('terminal streams (fake core)', () => {
     await until(() => core.calls.filter((c) => c.method === 'terminal.label').length === 2, 3000);
     expect(core.calls.filter((c) => c.method === 'terminal.label')[1]?.params).toEqual({ terminal: 't1', labels: { 'herdr.seen': '4' } });
   });
+
+  it('marks an agent unread (herdr.seen = turn - 1), and an agent left on screen is not marked seen again', async () => {
+    await start({ seenSync: true });
+    const a = new TermClient();
+    await a.ready;
+    const labels = () => core.calls.filter((c) => c.method === 'terminal.label').map((c) => c.params);
+    // On screen: seen sync raises t1 to its turn (3).
+    a.send({ t: 'looking', terminalIds: ['t1'] });
+    await until(() => bridge.store.world.terminals.t1?.status === 'idle', 3000);
+    // Another client marks it unread.
+    const b = new TermClient();
+    await b.ready;
+    b.send({ t: 'unread', terminalId: 't1' });
+    await until(() => bridge.store.world.terminals.t1?.status === 'done', 3000);
+    expect(bridge.store.world.terminals.t1?.seenTurn).toBe(2);
+    // Still on screen and still looking: no write raises it back (once per turn, like the desktop).
+    a.send({ t: 'looking', terminalIds: ['t1'] });
+    await sleep(700);
+    expect(labels()).toEqual([
+      { terminal: 't1', labels: { 'herdr.seen': '3' } },
+      { terminal: 't1', labels: { 'herdr.seen': '2' } },
+    ]);
+    expect(bridge.store.world.terminals.t1?.status).toBe('done');
+    // Refused: already unread (t1), a shell (t3), working (t2), a sub-agent (t5), turn 0 (t6), unknown.
+    for (const id of ['t1', 't3', 't2', 't5', 't6', 'nope']) b.send({ t: 'unread', terminalId: id });
+    await until(() => b.of('error').length === 6, 3000);
+    expect(labels()).toHaveLength(2);
+    // t4 (idle, turn 7, seen 7) can be.
+    b.send({ t: 'unread', terminalId: 't4' });
+    await until(() => bridge.store.world.terminals.t4?.status === 'done', 3000);
+    expect(labels().at(-1)).toEqual({ terminal: 't4', labels: { 'herdr.seen': '6' } });
+  });
 });
 
 describe('review fixes (task 6b)', () => {

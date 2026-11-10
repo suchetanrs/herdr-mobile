@@ -7,11 +7,13 @@ import {
   parseClientMessage,
   type TerminalServerMessage,
   type TerminalView,
+  unreadSeenTurn,
 } from '@herdr-mobile/protocol';
 import headlessPkg from '@xterm/headless';
 import { describe, expect, it } from 'vitest';
 import { checkCall, PolicyError } from '../src/core/policy.js';
 import { SeenSync } from '../src/seen/sync.js';
+import { markUnread } from '../src/seen/unread.js';
 import { encodeKey, encodeKeys, encodePaste, isAnswerKeys, KeyError } from '../src/terminal/keys.js';
 import { ScreenMirror } from '../src/terminal/mirror.js';
 import { InputLimiter, TokenBucket } from '../src/terminal/ratelimit.js';
@@ -155,6 +157,49 @@ describe('review fixes (task 6b): input and policy', () => {
     expect(seenTurnOf(terminalRec({ 'herdr.seen': '1e3' }))).toBeNull();
     expect(seenTurnOf(terminalRec({ 'herdr.seen': ' 4' }))).toBeNull();
     expect(seenTurnOf(terminalRec({ 'herdr.seen': '12' }))).toBe(12);
+  });
+});
+
+describe('mark unread', () => {
+  const view = (over: Partial<TerminalView> = {}) =>
+    ({ id: 't1', machine: null, parent: null, status: 'idle', word: 'idle', turn: 4, seenTurn: 4, ...over }) as TerminalView;
+
+  it('parses the message', () => {
+    expect(parseClientMessage('{"t":"unread","terminalId":"t1"}')).toEqual({ t: 'unread', terminalId: 't1' });
+    expect(parseClientMessage('{"t":"unread"}')).toBeNull();
+    expect(parseClientMessage('{"t":"unread","terminalId":""}')).toBeNull();
+    expect(parseClientMessage(`{"t":"unread","terminalId":"${'x'.repeat(65)}"}`)).toBeNull();
+  });
+
+  it('is turn - 1, only for a seen, finished, top-level agent on this machine', () => {
+    expect(unreadSeenTurn(view())).toBe(3);
+    expect(unreadSeenTurn(view({ turn: 1 }))).toBe(0);
+    expect(unreadSeenTurn(view({ turn: 0 }))).toBeNull();
+    for (const status of ['done', 'working', 'blocked', null] as const) expect(unreadSeenTurn(view({ status }))).toBeNull();
+    expect(unreadSeenTurn(view({ machine: 'vps' }))).toBeNull();
+    expect(unreadSeenTurn(view({ parent: 't0' }))).toBeNull();
+  });
+
+  it('writes through the seen writer only when allowed', async () => {
+    const world = emptyWorld();
+    world.terminals.t1 = view();
+    world.terminals.t2 = view({ id: 't2', status: 'done', seenTurn: 3 });
+    const writes: Array<[string, number]> = [];
+    const deps = {
+      world: () => world,
+      isLive: (id: string) => id !== 'gone',
+      write: async (id: string, turn: number) => {
+        writes.push([id, turn]);
+      },
+    };
+    expect(await markUnread(deps, 't1')).toBeNull();
+    expect(await markUnread(deps, 't2')).toMatch(/finished/);
+    expect(await markUnread(deps, 'nope')).toMatch(/no such/);
+    world.terminals.gone = view({ id: 'gone' });
+    expect(await markUnread(deps, 'gone')).toMatch(/no such/);
+    expect(writes).toEqual([['t1', 3]]);
+    // The value it writes passes the policy (only herdr.seen digits).
+    expect(() => checkCall('terminal.label', { terminal: 't1', labels: { 'herdr.seen': '3' } })).not.toThrow();
   });
 });
 

@@ -890,3 +890,20 @@
   height: 44px;
   color: var(--muted);
 }
+
+/* Hold an agent row: "Mark as unread" (components/UnreadMenu.tsx). */
+.unread-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+}
+.menu.unread-menu {
+  position: fixed;
+  right: auto;
+  transform-origin: top center;
+}
+[data-press] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

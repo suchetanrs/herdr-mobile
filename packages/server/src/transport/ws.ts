@@ -36,6 +36,8 @@ export interface WsTransportOptions {
   recentAlerts: () => AttentionAlert[];
   /** The person is looking at these terminals, per client (empty: nothing / gone). */
   onLooking?: (clientId: string, terminalIds: string[]) => void;
+  /** "Mark as unread" (seen/unread.ts): resolves with an error for the client, or null. */
+  onMarkUnread?: (terminalId: string) => Promise<string | null>;
   /** Creates a client's terminal side (streams and input); none: terminal messages are refused. */
   terminals?: (sink: StreamSink) => TerminalSession;
   /** Creates a client's conversation streams; none: conversation messages are refused. */
@@ -233,6 +235,21 @@ export class WsTransport {
       case 'looking':
         this.opts.onLooking?.(s.id, msg.terminalIds);
         return;
+      case 'unread': {
+        const refuse = (message: string) => this.send(s, { t: 'error', code: 'bad_message', message });
+        if (!this.opts.onMarkUnread) {
+          refuse('unread is not available in this bridge version');
+          return;
+        }
+        this.opts.onMarkUnread(msg.terminalId).then(
+          (err) => err && refuse(err),
+          (err: Error) => {
+            this.log.warn({ terminal: msg.terminalId, err: err.message }, 'mark unread failed');
+            refuse('mark unread failed');
+          },
+        );
+        return;
+      }
       case 'conv.open':
       case 'conv.more':
       case 'conv.close':
