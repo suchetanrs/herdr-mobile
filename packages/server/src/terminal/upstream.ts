@@ -183,6 +183,17 @@ export class TerminalUpstream extends EventEmitter<UpstreamEvents> {
     return this.mirror.modes;
   }
 
+  /**
+   * The screen's rows now (down to the last non-blank one), once the first paint is in. With `solid`, faint (dim)
+   * text is blanked (same rows, same columns).
+   */
+  async screen(opts: { solid?: boolean } = {}): Promise<string[]> {
+    await this.open();
+    await this.painted;
+    const now = await this.mirror.screenNow(opts);
+    return opts.solid ? (now.solid ?? []) : now.rows;
+  }
+
   /** The core connection came back: attach again; every viewer gets a fresh snapshot. */
   reconnect(): void {
     if (this.state !== 'down') return;

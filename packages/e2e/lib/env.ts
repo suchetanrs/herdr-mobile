@@ -14,6 +14,28 @@ export const PID_FILE = path.join(WORK, 'bridge.pid');
 export const LOG_FILE = path.join(WORK, 'bridge.log');
 export const CONV_DIR = path.join(WORK, 'conv');
 export const CONV_FILE = path.join(CONV_DIR, 'session.jsonl');
+/** A seeded reply for the read-aloud test: markdown, a link, a list and a code block that must not be spoken. */
+export const READ_ALOUD_REPLY = [
+  '## Read-aloud check',
+  '',
+  'First sentence is here. Second sentence has a [link text](https://example.com/docs) and ends here! Third one asks a question?',
+  '',
+  '- List item one',
+  '- List item two',
+  '',
+  '```bash',
+  'echo SECRET_CODE_WORD',
+  '```',
+  '',
+  'Final sentence after the code.',
+].join('\n');
+
+/** One Claude turn holding three messages with tool calls between them (as real turns do): A, tool, B, tool, C. */
+export const MULTI_MESSAGES = [
+  'Got it. Option 1: check the files first.',
+  'The files look **fine**. Running the tests next.',
+  'All tests pass. The *final* answer is here.',
+] as const;
 
 /** The user's production service (systemd), read-only checks only. */
 export const SERVICE_URL = process.env.E2E_SERVICE_URL ?? 'http://127.0.0.1:8787';

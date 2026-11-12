@@ -1,0 +1,12 @@
+● Done. The tests pass and the change is committed.
+
+  Tell me if you want anything else.
+
+✻ Sautéed for 8m 3s · done 4:46 PM
+                                                                                                    new task? /clear to save 424.4k tokens · ✔ Update installed · /restart to apply
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ give me the command to run it
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Opus 5.5] │ project │ Cost $97.76
+  Context ████░░░░░░ 42% (424k/1.0M) │ Usage Weekly ███░░░░░░░ 30% (resets in 3d 2h)
+  ⏵⏵ auto mode on (shift+tab to cycle) · ← 1 agent · 1 feedback draft

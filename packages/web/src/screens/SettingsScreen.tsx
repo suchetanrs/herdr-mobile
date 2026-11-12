@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Icon, type IconName } from '../components/Icon';
 import { BackButton, Screen } from '../components/Screen';
 import { useConn, useDiag, useSelector, useServices, useSettings } from '../hooks/app';
@@ -7,6 +7,7 @@ import { BUILD } from '../lib/build';
 import { duration } from '../lib/format';
 import { back } from '../lib/router';
 import { type Settings, settings as store } from '../lib/settings';
+import { pageLang, speech, speechSupported, watchVoices } from '../lib/speech';
 import { askSystemPermission, systemNotificationsPossible, systemPermission } from '../notify/system';
 
 export function Toggle({ on, onChange, label, hint }: { on: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
@@ -206,6 +207,51 @@ export function DevicesGroup() {
   );
 }
 
+/** The page language's voices first, then the rest, each by name. */
+function sortVoices(voices: readonly SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
+  const lang = (pageLang() ?? 'en').toLowerCase().split('-')[0] ?? 'en';
+  const mine = (v: SpeechSynthesisVoice) => (v.lang.toLowerCase().split(/[-_]/)[0] === lang ? 0 : 1);
+  return [...voices].sort((a, b) => mine(a) - mine(b) || a.lang.localeCompare(b.lang) || a.name.localeCompare(b.name));
+}
+
+/** Read aloud (Conversation): this device's voice, remembered here, and a Test. Hidden without speechSynthesis. */
+export function ReadAloudGroup() {
+  const voice = useSyncExternalStore(speech.subscribe, () => speech.get().voice);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  useEffect(() => watchVoices((v) => setVoices(sortVoices(v))), []);
+  if (!speechSupported()) return null;
+  const known = voice === null || voices.some((v) => v.voiceURI === voice);
+  return (
+    <Group title="Read aloud">
+      <label className="setting setting-stack">
+        <span className="setting-text">
+          <span>Read aloud voice</span>
+          <span className="setting-hint">For the speaker under replies. Kept on this device.</span>
+        </span>
+        <select className="setting-select" value={voice ?? ''} onChange={(e) => speech.setVoice(e.target.value || null)}>
+          <option value="">Default voice</option>
+          {!known && voice && <option value={voice}>{voice}</option>}
+          {voices.map((v) => (
+            <option key={v.voiceURI} value={v.voiceURI}>
+              {v.name} ({v.lang}){v.localService ? '' : ' · online'}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="setting-actions">
+        <button
+          type="button"
+          className="btn btn-small"
+          onClick={() => speech.sample('This is how replies are read aloud. Pick another voice if this one sounds robotic.')}
+        >
+          <Icon name="volume" size={14} />
+          Test
+        </button>
+      </div>
+    </Group>
+  );
+}
+
 const SEND_TEXT: Record<string, string> = {
   sent: 'Sent to the bridge',
   limited: 'Too many reports; wait a minute',
@@ -380,6 +426,8 @@ export function SettingsScreen({ embedded = false }: { embedded?: boolean }) {
           hint="Off: the send button types the text without submitting it"
         />
       </Group>
+
+      <ReadAloudGroup />
 
       <DevicesGroup />
 

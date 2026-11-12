@@ -1,0 +1,119 @@
+ ▐▛███▛█   Claude Code v2.1.322
+▝▜██████▀  Sonnet 5.5 with low effort · Claude Max
+ ▝▝   ▝▝   ~/code/herdr-mobile/.test-tmp/me/probe
+
+
+❯ /model
+  ⎿  Kept model as Haiku 5.5
+
+❯ /effort
+  ⎿  Cancelled
+
+❯ /model
+  ⎿  Set model to Sonnet 5.5 for this session only
+
+❯ /effort
+  ⎿  Set effort level to low (this session only): Quick, straightforward implementation with minimal overhead
+
+❯ /model
+  ⎿  Kept model as Sonnet 5.5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔ ○ low · /effort ▔
+   Effort
+
+                                                                     Faster                             Smarter
+                                                                     ─▲────────────────────────────────────────      Ultracode  off
+                                                                     low     medium     high     xhigh      max      Tab to toggle
+
+                                                                            ~0.9x the estimated cost of medium (the default)
+
+
+   ←/→ to adjust · Enter to confirm · s for this session only · Esc to cancel

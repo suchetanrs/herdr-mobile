@@ -1,0 +1,12 @@
+● Done. The tests pass and the change is committed.
+
+  Tell me if you want anything else.
+
+✻ Sautéed for 8m 3s · done 4:46 PM
+                                                                                                    new task? /clear to save 424.4k tokens · ✔ Update installed · /restart to apply
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Opus 5.5] │ project │
+          ████       42% (424k/1.0M) │              ███        30% (resets in 3d 2h)
+  ⏵⏵ auto mode on (shift+tab to cycle) · ← 1 agent · 1 feedback draft

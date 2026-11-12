@@ -1,7 +1,8 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import { HerdrMark } from '../components/Chrome';
 import { Icon } from '../components/Icon';
 import { useServices } from '../hooks/app';
+import { useFocusVisible } from '../hooks/dom';
 import { useTapFocus } from '../hooks/gestures';
 import { type SignInResult, signIn } from '../lib/auth';
 
@@ -34,6 +35,8 @@ export function TokenScreen() {
   const { conn, store } = useServices();
   const [token, setToken] = useState('');
   const tapFocus = useTapFocus<HTMLInputElement>();
+  const page = useRef<HTMLDivElement>(null);
+  useFocusVisible(page);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(() => (linkResult ? MESSAGES[linkResult] : null));
 
@@ -54,7 +57,7 @@ export function TokenScreen() {
   };
 
   return (
-    <div className="token-screen">
+    <div className="token-screen" ref={page}>
       <form className="token-card" onSubmit={submit}>
         <HerdrMark size={40} />
         <h1>Connect to Herdr</h1>

@@ -10,6 +10,8 @@ import {
   HIST_LINES,
   HIST_NAME,
   hcJson,
+  MULTI_MESSAGES,
+  READ_ALOUD_REPLY,
   REPO,
   removeTerminal,
   SHELL_NAME,
@@ -30,6 +32,63 @@ function seedTranscript(): void {
   const t = (s: number) => new Date(Date.now() - 60_000 + s * 1000).toISOString();
   const lines = [
     { type: 'custom-title', customTitle: 'e2e-session' },
+    {
+      type: 'user',
+      uuid: '00000000-0000-4000-8000-000000000011',
+      timestamp: t(-10),
+      message: { role: 'user', content: 'E2E read-aloud prompt' },
+    },
+    {
+      type: 'assistant',
+      uuid: '00000000-0000-4000-8000-000000000012',
+      timestamp: t(-9),
+      message: {
+        id: 'm0',
+        model: 'claude-opus-5-5',
+        role: 'assistant',
+        content: [{ type: 'text', text: READ_ALOUD_REPLY }],
+        usage: { input_tokens: 3, output_tokens: 40 },
+      },
+    },
+    {
+      type: 'user',
+      uuid: '00000000-0000-4000-8000-000000000021',
+      timestamp: t(-8),
+      message: { role: 'user', content: 'E2E multi-message prompt' },
+    },
+    ...MULTI_MESSAGES.flatMap((text, i) => {
+      const n = 22 + i * 3;
+      const id = (k: number) => `00000000-0000-4000-8000-0000000000${n + k}`;
+      const at = t(-7 + i * 0.5);
+      const said = {
+        type: 'assistant',
+        uuid: id(0),
+        timestamp: at,
+        message: { id: `mm${i}`, model: 'claude-opus-5-5', role: 'assistant', content: [{ type: 'text', text }] },
+      };
+      if (i === MULTI_MESSAGES.length - 1) return [said];
+      return [
+        said,
+        {
+          type: 'assistant',
+          uuid: id(1),
+          timestamp: at,
+          message: {
+            id: `mm${i}`,
+            model: 'claude-opus-5-5',
+            role: 'assistant',
+            content: [{ type: 'tool_use', id: `toolu_mm${i}`, name: 'Bash', input: { command: 'true', description: 'Check' } }],
+          },
+        },
+        {
+          type: 'user',
+          uuid: id(2),
+          timestamp: at,
+          message: { role: 'user', content: [{ tool_use_id: `toolu_mm${i}`, type: 'tool_result', content: '', is_error: false }] },
+          toolUseResult: { stdout: '', stderr: '', interrupted: false },
+        },
+      ];
+    }),
     {
       type: 'user',
       uuid: '00000000-0000-4000-8000-000000000001',

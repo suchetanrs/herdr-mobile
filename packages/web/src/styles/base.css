@@ -561,12 +561,12 @@ code {
   flex: 1;
   overflow: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
   padding: calc(24px + var(--safe-top)) 20px calc(24px + var(--safe-bottom));
   background: var(--chrome);
 }
+/* margin: auto centres it but keeps its top reachable when the keyboard leaves less room than the card. */
 .token-card {
+  margin: auto;
   width: min(400px, 100%);
   display: flex;
   flex-direction: column;
@@ -723,10 +723,13 @@ code {
     filter 300ms;
 }
 
-/* Sheets: full screen on a phone, a dialog on a desktop. */
+/* Sheets: full screen on a phone, a dialog on a desktop. The layer follows the visual viewport like .app
+   (SheetLayer puts it on <body>), so a bottom sheet with a focused field sits above the phone keyboard. */
 .sheet-backdrop {
   position: fixed;
-  inset: 0;
+  inset: 0 0 auto 0;
+  height: var(--vvh, 100dvh);
+  transform: translateY(var(--vv-top, 0px));
   z-index: 40;
   display: flex;
   align-items: flex-end;

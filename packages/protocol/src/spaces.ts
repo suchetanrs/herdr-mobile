@@ -70,12 +70,31 @@ export const FOLDER_MAX = 1024;
  * Herdr adopts into that space.
  */
 
-/** What the new tab runs: the shell, Claude Code (new), or `claude --resume <session>`. */
+/** What the new tab runs: the shell, Claude Code (new), `claude --resume <session>`, or a branch of an agent's conversation. */
 export type NewTabStart =
   | { kind: 'shell' }
   | { kind: 'claude' }
   /** `config`: the Claude config folder to resume with (`ClaudeConfigChoice.id`); absent: the session's own. */
-  | { kind: 'resume'; session: string; config?: string };
+  | { kind: 'resume'; session: string; config?: string }
+  /**
+   * `claude --resume <its session> --fork-session --name <name>` with the login it runs under: a new
+   * conversation that starts with this one's history (the original is left as it is). `terminal`: a
+   * Claude Code agent of this space; `name`: the new conversation's (and tab's) name.
+   */
+  | { kind: 'branch'; terminal: string; name: string };
+
+export const BRANCH_NAME_MAX = 64;
+
+/** Why `name` can't name a branched conversation (null: it can). The bridge checks the same. */
+export function branchNameError(name: string): string | null {
+  if (name.trim() === '') return 'Give it a name';
+  if (name !== name.trim()) return 'No spaces at the start or end';
+  if (name.length > BRANCH_NAME_MAX) return `At most ${BRANCH_NAME_MAX} characters`;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this refuses
+  if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/.test(name)) return 'No line breaks or control characters';
+  if (name.startsWith('-')) return 'It can’t start with “-”';
+  return null;
+}
 
 export interface NewTabRequest {
   start: NewTabStart;

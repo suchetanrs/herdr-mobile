@@ -1,0 +1,119 @@
+ ▐▛███▛█   Claude Code v2.1.322
+▝▜██████▀  Haiku 4.5 · Claude Max
+ ▝▝   ▝▝   ~/code/herdr-mobile/.test-tmp/me/probe
+
+
+❯ /model
+  ⎿  Kept model as Haiku 5.5
+
+❯ /effort
+  ⎿  Cancelled
+
+❯ /model
+  ⎿  Set model to Sonnet 5.5 for this session only
+
+❯ /effort
+  ⎿  Set effort level to low (this session only): Quick, straightforward implementation with minimal overhead
+
+❯ /model
+  ⎿  Kept model as Sonnet 5.5
+
+❯ /effort
+  ⎿  Cancelled
+
+❯ /model
+  ⎿  Set model to Haiku 4.5 for this session only
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                                                                                  auto mode unavailable for this model
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  [Haiku 4.5] │ probe git:(feat/model-effort*) │ Cost $0.0000
+  Context ░░░░░░░░░░ 0% (0/200k)
+  ⏸ manual mode on · install gh for PR status · ← 1 agent

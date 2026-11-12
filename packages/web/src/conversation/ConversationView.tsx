@@ -3,8 +3,10 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { Icon, type IconName } from '../components/Icon';
 import { useNow, useServices } from '../hooks/app';
 import { copyText } from '../lib/copy';
+import { speech } from '../lib/speech';
 import type { Conversation, ConversationState } from './client';
 import { Markdown } from './Markdown';
+import { SpeakButton, SpeechDock, useSpeech, useSpeechHighlight } from './ReadAloud';
 import { ToolCard } from './ToolCard';
 import '../styles/conversation.css';
 
@@ -35,22 +37,27 @@ export function formatDuration(ms: number): string {
 const clock = (ts: number | null) => (ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 
 function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<'ok' | 'failed' | null>(null);
   return (
-    <button
-      type="button"
-      className="msg-act"
-      onClick={async () => {
-        if (await copyText(text)) {
-          setDone(true);
-          setTimeout(() => setDone(false), 1200);
-        }
-      }}
-      aria-label={label}
-      title={label}
-    >
-      <Icon name={done ? 'check' : 'copy'} size={13} />
-    </button>
+    <>
+      <button
+        type="button"
+        className="msg-act"
+        onClick={async () => {
+          setDone((await copyText(text)) ? 'ok' : 'failed');
+          setTimeout(() => setDone(null), 1500);
+        }}
+        aria-label={label}
+        title={label}
+      >
+        <Icon name={done === 'ok' ? 'check' : 'copy'} size={13} />
+      </button>
+      {done && (
+        <span className="msg-copied" role="status">
+          {done === 'ok' ? 'Copied' : 'Couldn’t copy'}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -155,23 +162,29 @@ const Row = memo(function Row({
   cwd,
   waiting,
   reply,
+  replyId,
+  owner,
 }: {
   it: ConvItem;
   cwd: string | null;
   waiting: boolean;
-  /** The last text of a reply carries the whole reply, to copy. */
+  /** The last text of a message carries the whole message, to copy and read aloud. */
   reply: string | null;
+  /** The message this text belongs to (its last text's id), for the read-aloud highlight. */
+  replyId: string | undefined;
+  owner: string;
 }) {
   switch (it.kind) {
     case 'user':
       return <UserBubble it={it} />;
     case 'assistant':
       return (
-        <div className="msg-agent">
+        <div className="msg-agent" data-reply={replyId}>
           <Markdown text={it.text} />
           {(reply !== null || it.truncated) && (
             <div className="msg-actions">
               {reply !== null && <CopyButton text={reply} label="Copy the reply" />}
+              {reply !== null && <SpeakButton owner={owner} replyId={it.id} text={reply} />}
               {it.truncated && <span className="clip-note">Clipped: the terminal has all of it.</span>}
             </div>
           )}
@@ -186,25 +199,34 @@ const Row = memo(function Row({
   }
 });
 
-/** For each reply (the agent's texts between two prompts): its last text's id -> the whole reply. */
-function replies(items: readonly ConvItem[]): Map<string, string> {
-  const out = new Map<string, string>();
+/**
+ * For each message (a run of the agent's texts with nothing else between them; a tool call, thinking, notice or prompt
+ * ends it): its last text's id -> the message's text, and each of its texts' ids -> that last id. One Claude turn
+ * holds several messages ("Got it. ...", tool calls, the answer); copy and read aloud act on one message only.
+ */
+function replies(items: readonly ConvItem[]): { text: Map<string, string>; of: Map<string, string> } {
+  const text = new Map<string, string>();
+  const of = new Map<string, string>();
   let texts: string[] = [];
-  let last: string | null = null;
+  let ids: string[] = [];
   const close = () => {
-    if (last) out.set(last, texts.join('\n\n'));
+    const last = ids[ids.length - 1];
+    if (last) {
+      text.set(last, texts.join('\n\n'));
+      for (const id of ids) of.set(id, last);
+    }
     texts = [];
-    last = null;
+    ids = [];
   };
   for (const it of items) {
-    if (it.kind === 'user') close();
-    else if (it.kind === 'assistant') {
+    if (it.kind !== 'assistant') close();
+    else {
       texts.push(it.text);
-      last = it.id;
+      ids.push(it.id);
     }
   }
   close();
-  return out;
+  return { text, of };
 }
 
 function shownItem(it: ConvItem): boolean {
@@ -273,6 +295,22 @@ export function ConversationView({
   const prevEpoch = useRef(-1);
   const [away, setAway] = useState(false);
   const [unread, setUnread] = useState(0);
+  const spoken = useSpeech();
+  useSpeechHighlight(spoken, t.id, content, scroller);
+  // Reading stops (paused, resumable at the same sentence) when this view goes or the page is hidden.
+  useEffect(() => {
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') speech.suspend(t.id);
+    };
+    const gone = () => speech.suspend(t.id);
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', gone);
+    return () => {
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', gone);
+      speech.suspend(t.id);
+    };
+  }, [t.id]);
 
   const items = useMemo(() => (state?.items ?? []).filter(shownItem), [state?.items]);
   const replyText = useMemo(() => replies(items), [items]);
@@ -377,8 +415,9 @@ export function ConversationView({
     );
   }
 
+  const docked = spoken.owner === t.id && spoken.key !== null;
   return (
-    <div className="conv">
+    <div className={`conv${docked ? ' speaking' : ''}`}>
       <MetaBar meta={state.meta} name={t.name ?? t.title} />
       <div className="conv-scroll" ref={scroller} onScroll={onScroll}>
         <div className="conv-list" ref={content}>
@@ -393,7 +432,14 @@ export function ConversationView({
           {items.length === 0 && !working && <div className="conv-quiet">Nothing here yet. Send a message below.</div>}
           {items.map((it) => (
             <div key={it.id} className={`row row-${it.kind}${it.kind === 'notice' ? ` row-n-${it.notice}` : ''}`}>
-              <Row it={it} cwd={t.cwd} waiting={it.id === waitingId} reply={replyText.get(it.id) ?? null} />
+              <Row
+                it={it}
+                cwd={t.cwd}
+                waiting={it.id === waitingId}
+                reply={replyText.text.get(it.id) ?? null}
+                replyId={replyText.of.get(it.id)}
+                owner={t.id}
+              />
             </div>
           ))}
           {working && <Working since={t.statusMs} onStop={onStop} />}
@@ -412,6 +458,7 @@ export function ConversationView({
         </button>
       )}
       {state.stale && <div className="conv-stale">Reconnecting… showing what was loaded</div>}
+      {docked && <SpeechDock s={spoken} />}
     </div>
   );
 }

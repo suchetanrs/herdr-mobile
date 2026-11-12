@@ -1,4 +1,5 @@
 export * from './attention.js';
+export * from './claude.js';
 export * from './conversation.js';
 export * from './files.js';
 export * from './history.js';

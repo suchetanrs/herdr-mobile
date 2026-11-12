@@ -1,5 +1,6 @@
 import type { TerminalView, World } from '@herdr-mobile/protocol';
 import { type CSSProperties, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AgentMenu } from '../components/AgentMenu';
 import { type View, ViewSwitch, ZoomButton } from '../components/AgentTools';
 import { ApproveBar } from '../components/ApproveBar';
 import { ChunkBoundary } from '../components/ChunkBoundary';
@@ -344,6 +345,7 @@ export function AgentScreen({
             </span>
           )}
           <StatusGlyph status={status} />
+          <AgentMenu t={t} small />
         </div>
         {body}
       </div>
@@ -377,6 +379,7 @@ export function AgentScreen({
             </>
           )}
           <AlertsButton />
+          <AgentMenu t={t} />
         </header>
       }
     >

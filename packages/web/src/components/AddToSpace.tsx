@@ -7,6 +7,7 @@ import { navigate } from '../lib/router';
 import { addTab, spaceSessions } from '../lib/spaces';
 import { Icon } from './Icon';
 import { ProgramIcon } from './ProgramIcon';
+import { SheetLayer } from './Sheet';
 
 type Step = 'pick' | 'claude' | 'resume';
 const TITLES: Record<Step, string> = { pick: 'New tab', claude: 'Claude session', resume: 'Resume a session' };
@@ -222,7 +223,7 @@ export function AddToSpace({ spaceId, onClose }: { spaceId: string; onClose: () 
   }
 
   return (
-    <div className="sheet-backdrop add-backdrop" role="presentation" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <SheetLayer className="add-backdrop" onDismiss={onClose}>
       <div className={`sheet add-sheet add-${step}`} role="dialog" aria-modal="true" aria-label={TITLES[step]}>
         <header className="sheet-head">
           {step !== 'pick' && (
@@ -257,7 +258,7 @@ export function AddToSpace({ spaceId, onClose }: { spaceId: string; onClose: () 
           )}
         </div>
       </div>
-    </div>
+    </SheetLayer>
   );
 }
 

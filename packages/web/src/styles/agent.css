@@ -907,3 +907,82 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* The agent's "⋯" (components/AgentMenu.tsx): branch out, and what comes next. */
+.agent-more {
+  position: relative;
+  flex: none;
+  display: flex;
+}
+.agent-more .icon-btn.on {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.menu.agent-more-menu {
+  width: 292px;
+  max-width: calc(100vw - 16px);
+}
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.menu-item:disabled:hover {
+  background: none;
+}
+.pane-more.icon-btn.sm {
+  width: 26px;
+  height: 26px;
+  margin-right: -6px;
+}
+.branch-body {
+  padding: 14px calc(14px + var(--safe-right)) calc(14px + var(--safe-bottom)) calc(14px + var(--safe-left));
+}
+.branch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+@media (pointer: coarse) {
+  /* iOS zooms into inputs under 16 px. */
+  .branch-sheet .field input {
+    font-size: 16px;
+  }
+}
+@media (min-width: 1024px) {
+  .sheet.add-sheet.branch-sheet {
+    width: min(460px, 92vw);
+  }
+}
+
+/* Choose model / effort level (components/ClaudeSettingSheet.tsx). */
+.setting-row.on {
+  font-weight: 600;
+}
+.setting-mark {
+  color: var(--accent);
+}
+.setting-done {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+.setting-done .icon {
+  color: var(--accent);
+}
+.setting-retry {
+  margin-left: 8px;
+}
+@media (min-width: 1024px) {
+  .sheet.add-sheet.setting-sheet {
+    width: min(460px, 92vw);
+  }
+}
+.setting-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--dim);
+}

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { copyText } from '../lib/copy';
 import { load, save } from '../lib/storage';
 import { Icon } from './Icon';
+import { SheetLayer } from './Sheet';
 
 /**
  * The terminal's text (scrollback + screen) as plain, selectable text: select a part with the
@@ -29,7 +30,7 @@ export function TextSheet({ title, read, onClose }: { title: string; read: () =>
   }, [onClose]);
 
   return (
-    <div className="sheet-backdrop" role="presentation" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <SheetLayer onDismiss={onClose}>
       <div className="sheet text-sheet" role="dialog" aria-modal="true" aria-label={title}>
         <header className="sheet-head">
           <span className="sheet-title">{title}</span>
@@ -73,6 +74,6 @@ export function TextSheet({ title, read, onClose }: { title: string; read: () =>
         </pre>
         <footer className="sheet-foot">Copy takes the selection, or everything when nothing is selected.</footer>
       </div>
-    </div>
+    </SheetLayer>
   );
 }

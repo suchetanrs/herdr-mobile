@@ -160,19 +160,36 @@ export class ScreenMirror {
     });
   }
 
-  /** Whether the screen is a full-screen app's (alternate buffer), and its rows down to the last non-blank one. */
-  screenNow(): Promise<{ alt: boolean; rows: string[] }> {
+  /**
+   * Whether the screen is a full-screen app's (alternate buffer), and its rows down to the last non-blank one.
+   * With `solid`, also the same rows with faint (dim) text blanked: greyed hints and suggestions, not typed text.
+   */
+  screenNow(opts: { solid?: boolean } = {}): Promise<{ alt: boolean; rows: string[]; solid?: string[] }> {
     return new Promise((resolve) => {
       this.term.write('', () => {
         if (this.disposed) {
-          resolve({ alt: false, rows: [] });
+          resolve({ alt: false, rows: [], ...(opts.solid ? { solid: [] } : {}) });
           return;
         }
         const b = this.term.buffer.active;
         const rows: string[] = [];
-        for (let y = 0; y < this.term.rows; y++) rows.push(b.getLine(b.baseY + y)?.translateToString(true) ?? '');
+        const solid: string[] = [];
+        const cell = b.getNullCell();
+        for (let y = 0; y < this.term.rows; y++) {
+          const line = b.getLine(b.baseY + y);
+          rows.push(line?.translateToString(true) ?? '');
+          if (!opts.solid) continue;
+          let text = '';
+          for (let x = 0; line && x < line.length; x++) {
+            line.getCell(x, cell);
+            const w = cell.getWidth();
+            if (w === 0) continue;
+            text += cell.isDim() ? ' '.repeat(w) : cell.getChars() || ' ';
+          }
+          solid.push(text.trimEnd());
+        }
         while (rows.length > 0 && rows[rows.length - 1]?.trim() === '') rows.pop();
-        resolve({ alt: b.type === 'alternate', rows });
+        resolve({ alt: b.type === 'alternate', rows, ...(opts.solid ? { solid: solid.slice(0, rows.length) } : {}) });
       });
     });
   }

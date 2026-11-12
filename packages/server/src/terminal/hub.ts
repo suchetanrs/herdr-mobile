@@ -183,6 +183,32 @@ export class TerminalHub {
     });
   }
 
+  /**
+   * Runs `run` with this terminal's screen and keyboard to itself: no other phone input is typed until it ends
+   * (for multi-step work like Claude's menus). Keys go through the typing attach like any other input.
+   */
+  exclusive<T>(
+    terminalId: string,
+    run: (io: {
+      screen(opts?: { solid?: boolean }): Promise<string[]>;
+      type(text: string): Promise<void>;
+      keys(names: string[]): Promise<void>;
+    }) => Promise<T>,
+  ): Promise<T> {
+    return this.locked(terminalId, async () => {
+      const up = this.get(terminalId);
+      try {
+        return await run({
+          screen: (opts) => up.screen(opts),
+          type: (text) => up.typing.write(Buffer.from(text, 'utf8')),
+          keys: (names) => this.keysNow(terminalId, names),
+        });
+      } finally {
+        up.touchIdle();
+      }
+    });
+  }
+
   private async keysNow(terminalId: string, names: readonly string[], check?: () => void): Promise<void> {
     const up = this.get(terminalId);
     try {
@@ -202,10 +228,13 @@ export class TerminalHub {
     }
   }
 
-  private locked(terminalId: string, run: () => Promise<void>): Promise<void> {
+  private locked<T>(terminalId: string, run: () => Promise<T>): Promise<T> {
     const prev = this.locks.get(terminalId) ?? Promise.resolve();
     const next = prev.then(run);
-    const tail = next.catch(() => {});
+    const tail: Promise<void> = next.then(
+      () => {},
+      () => {},
+    );
     this.locks.set(terminalId, tail);
     void tail.then(() => {
       if (this.locks.get(terminalId) === tail) this.locks.delete(terminalId);

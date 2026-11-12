@@ -1,0 +1,119 @@
+ ▐▛███▛█   Claude Code v2.1.322
+▝▜██████▀  Sonnet 5.5 with low effort · Claude Max
+ ▝▝   ▝▝   ~/code/herdr-mobile/.test-tmp/me/probe
+
+
+❯ /model
+  ⎿  Kept model as Haiku 5.5
+
+❯ /effort
+  ⎿  Cancelled
+
+❯ /model
+  ⎿  Set model to Sonnet 5.5 for this session only
+
+❯ /effort
+  ⎿  Set effort level to low (this session only): Quick, straightforward implementation with minimal overhead
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+   Select model
+   Switch between Claude models. Your pick becomes the default for new sessions. For other/previous model names, specify with --model.
+
+     1.  Default (recommended)  Opus 5.5 · Best for everyday, complex tasks
+     2.  Opus 5.5               For complex work and everyday tasks
+     3.  Fable 5.2              For your toughest challenges
+     4.  Sonnet 5.5 ✔           Most efficient for simpler tasks
+     5.  Haiku 5.5              Fastest for quick answers
+   ❯ ▸   More models
+
+
+
+   Enter to expand · Esc to cancel

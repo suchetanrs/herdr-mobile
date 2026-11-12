@@ -786,6 +786,20 @@
 .ns-actions .btn {
   min-width: 160px;
 }
+/* Phones, typing: Create space stays on screen above the keyboard (the page itself follows the visual viewport). */
+@media (max-width: 1023px) {
+  .ns-page:has(input:focus) {
+    scroll-padding-bottom: 76px;
+  }
+  .ns-page:has(input:focus) .ns-actions {
+    position: sticky;
+    bottom: calc(-28px - var(--safe-bottom));
+    margin: 18px calc(-10px - var(--safe-right)) calc(-28px - var(--safe-bottom)) calc(-10px - var(--safe-left));
+    padding: 10px calc(10px + var(--safe-right)) 10px calc(10px + var(--safe-left));
+    background: var(--canvas);
+    border-top: 1px solid var(--border);
+  }
+}
 .state-card .btn {
   margin-top: 12px;
 }
@@ -1384,4 +1398,16 @@ a.fs-dl {
   color: var(--accent);
   font: inherit;
   cursor: pointer;
+}
+.setting-select {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 16px;
 }

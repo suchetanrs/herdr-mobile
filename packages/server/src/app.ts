@@ -6,6 +6,7 @@ import { AttentionEngine } from './attention/engine.js';
 import { AuthLimiter } from './auth/limiter.js';
 import { SessionStore } from './auth/sessions.js';
 import { stripToken, TokenSource } from './auth/token.js';
+import { ClaudeSettings } from './claude/settings.js';
 import { type Config, DEFAULT_LIMITS } from './config.js';
 import { CoreClient } from './core/client.js';
 import { DiagLimiter, DiagLog } from './diag/log.js';
@@ -26,6 +27,7 @@ import { TabCreator } from './spaces/tabs.js';
 import { TerminalHub } from './terminal/hub.js';
 import { ConversationHub } from './transcripts/hub.js';
 import { TranscriptLocator } from './transcripts/locate.js';
+import { registerClaudeRoutes } from './transport/claude.js';
 import { ConversationSession } from './transport/conversation.js';
 import { registerDiagRoutes } from './transport/diag.js';
 import { registerFileRoutes } from './transport/files.js';
@@ -300,6 +302,9 @@ export function createBridge(config: Config): Bridge {
     logger,
   });
   registerSpaceRoutes(http, { creator, tabs, home: config.home });
+  registerClaudeRoutes(http, {
+    settings: new ClaudeSettings({ terminal: (id) => store.world.terminals[id], exclusive: (id, run) => hub.exclusive(id, run) }),
+  });
   const diagFile = config.diagFile ?? path.join(config.configDir, 'diag.jsonl');
   registerFileRoutes(http, {
     browser: new FileBrowser({

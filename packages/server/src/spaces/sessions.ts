@@ -350,6 +350,34 @@ export class ClaudeSessions {
     return this.running(configs).has(session);
   }
 
+  /**
+   * The config a running `session` uses: its `claude` process's CLAUDE_CONFIG_DIR (none: the default
+   * one). Undefined when it isn't running or its environment can't be read; null when that folder
+   * isn't one of `configs`.
+   */
+  runningConfig(session: string, configs = this.configs()): ClaudeConfig | null | undefined {
+    const run = this.running(configs).get(session);
+    const proc = this.opts.procRoot ?? (process.platform === 'linux' ? '/proc' : null);
+    if (!run || !proc) return undefined;
+    let dir: string | undefined;
+    try {
+      dir = parseEnviron(fs.readFileSync(path.join(proc, String(run.pid), 'environ'))).get('CLAUDE_CONFIG_DIR');
+    } catch {
+      return undefined;
+    }
+    if (!dir) return configs.find((c) => c.isDefault) ?? null;
+    if (!path.isAbsolute(dir)) return null;
+    const same = (a: string, b: string) => {
+      if (path.resolve(a) === path.resolve(b)) return true;
+      try {
+        return fs.realpathSync(a) === fs.realpathSync(b);
+      } catch {
+        return false;
+      }
+    };
+    return configs.find((c) => same(c.dir, dir)) ?? null;
+  }
+
   private ownerOf(session: string, folder: string, owners: ClaudeConfig[]): ClaudeConfig {
     if (owners.length > 1) {
       const named = owners.find((c) => this.states.get(c.stateFile)?.last.get(folder) === session);

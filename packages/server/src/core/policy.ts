@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { branchNameError } from '@herdr-mobile/protocol';
 import { projectDirName } from '../transcripts/claude.js';
 
 /**
@@ -20,7 +21,8 @@ import { projectDirName } from '../transcripts/claude.js';
  * never adopted is cleaned up). New tabs in an open space (the + in a space) go the same way, with the
  * space's own id and a fresh tab id: plain shell, Claude Code as the + menu starts it, or
  * `claude --resume <uuid>` (optionally `env CLAUDE_CONFIG_DIR=<config>` first) of a session whose
- * transcript is in that folder's project folder of that config. Every run must have been announced
+ * transcript is in that folder's project folder of that config, or a branch of one (the same plus
+ * `--fork-session --name <name>`, the name one plain argument, `branchNameError`). Every run must have been announced
  * by the spaces module (`expectRun`: it checked the space exists, or made the id), once.
  * `templates.list` is read only. `terminal.read` only as `{terminal, lines}` (a
  * full-screen app's history on the person's request, terminal/upstream.ts `appHistory`).
@@ -202,7 +204,10 @@ function checkRun(p: Record<string, unknown>): void {
   }
 }
 
-/** `<claude as the + menu starts it> --resume <uuid>`, maybe with `env CLAUDE_CONFIG_DIR=<config>` before the program. */
+/**
+ * `<claude as the + menu starts it> --resume <uuid>`, maybe with `env CLAUDE_CONFIG_DIR=<config>` before
+ * the program, maybe followed by `--fork-session --name <name>` (a branch).
+ */
 function isResume(argv: string[], cwd: string, config: string | undefined): boolean {
   const base = resumeBase;
   if (!base || base.length < 5 || !config || !CONFIG_DIR.test(config) || path.normalize(config) !== config) return false;
@@ -215,8 +220,13 @@ function isResume(argv: string[], cwd: string, config: string | undefined): bool
   } else if (path.basename(config) !== '.claude') {
     return false;
   }
-  const id = rest.at(-1) ?? '';
-  if (JSON.stringify(rest) !== JSON.stringify([...base.slice(4), '--resume', id]) || !UUID.test(id)) return false;
+  const program = base.slice(4);
+  const id = rest[program.length + 1] ?? '';
+  const tail = rest.slice(program.length + 2);
+  const name = tail[2] ?? '';
+  const branch = tail.length === 3 && tail[0] === '--fork-session' && tail[1] === '--name' && branchNameError(name) === null;
+  if (JSON.stringify(rest.slice(0, program.length + 2)) !== JSON.stringify([...program, '--resume', id]) || !UUID.test(id)) return false;
+  if (tail.length !== 0 && !branch) return false;
   try {
     return fs.statSync(path.join(config, 'projects', projectDirName(cwd), `${id}.jsonl`)).isFile();
   } catch {

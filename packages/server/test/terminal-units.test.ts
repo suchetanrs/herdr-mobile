@@ -258,6 +258,16 @@ describe('screen mirror', () => {
     expect(m.modes.applicationCursorKeys).toBe(true);
     m.dispose();
   });
+
+  it('gives the screen with faint text blanked, row for row (Claude’s greyed suggestions)', async () => {
+    const m = new ScreenMirror({ cols: 30, rows: 4, scrollback: 10 });
+    m.write(Buffer.from('❯ \x1b[2mTry this\x1b[0m\r\n❯ typed \x1b[2mhint\x1b[0m 漢字\r\n\r\n'));
+    const now = await m.screenNow({ solid: true });
+    expect(now.rows).toEqual(['❯ Try this', '❯ typed hint 漢字']);
+    expect(now.solid).toEqual(['❯', '❯ typed      漢字']);
+    expect((await m.screenNow()).solid).toBeUndefined();
+    m.dispose();
+  });
 });
 
 class FakeSink implements StreamSink {

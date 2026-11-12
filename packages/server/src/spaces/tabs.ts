@@ -1,8 +1,11 @@
 import type { EventEmitter } from 'node:events';
 import fs from 'node:fs';
-import type { NewTabResult, NewTabStart, SpaceSessions, SpaceView, World } from '@herdr-mobile/protocol';
+import path from 'node:path';
+import type { NewTabResult, NewTabStart, SpaceSessions, SpaceView, TerminalView, World } from '@herdr-mobile/protocol';
+import { branchNameError } from '@herdr-mobile/protocol';
 import { allowResume, expectRun, markStartedTab, SPAWN_ENV, unexpectRun } from '../core/policy.js';
 import { type Logger, silentLogger } from '../log.js';
+import { projectDirName } from '../transcripts/claude.js';
 import type { HerdrApp } from './app.js';
 import { CreateError, freshId, type Offer, paneSize } from './create.js';
 import { display } from './folders.js';
@@ -113,11 +116,20 @@ export class TabCreator {
 
   private async make(spaceId: string, start: NewTabStart): Promise<NewTabResult> {
     const space = this.space(spaceId);
-    const folder = this.folderOf(space);
+    let folder = start.kind === 'branch' ? '' : this.folderOf(space);
     let argv: string[] = [];
     let name = '';
     let config: ClaudeConfig | null = null;
-    if (start.kind !== 'shell') {
+    if (start.kind === 'branch') {
+      const offer = await this.claudeOffer();
+      if (!offer) throw new CreateError('Claude Code isn’t installed on this computer', 400);
+      const b = this.branchSource(space, start.terminal);
+      folder = b.folder;
+      config = b.config;
+      name = start.name;
+      argv = claudeArgv(offer.argv, config, ['--resume', b.session, '--fork-session', '--name', start.name]);
+      allowResume(offer.argv);
+    } else if (start.kind !== 'shell') {
       const offer = await this.claudeOffer();
       if (!offer) throw new CreateError('Claude Code isn’t installed on this computer', 400);
       name = offer.choice.name;
@@ -130,9 +142,7 @@ export class TabCreator {
           .list(folder, this.opts.store.world)
           .find((s) => s.id === start.session && (s.openIn || s.runningElsewhere));
         if (open || this.opts.sessions.isRunning(start.session)) throw new CreateError('That session is already open', 409);
-        // window.rs `agent_argv`: the program in the interactive shell, which stays after it.
-        const [wrapper, program] = [offer.argv.slice(0, 4), offer.argv.slice(4)];
-        argv = [...wrapper, ...(config.isDefault ? [] : ['env', `CLAUDE_CONFIG_DIR=${config.dir}`]), ...program, '--resume', start.session];
+        argv = claudeArgv(offer.argv, config, ['--resume', start.session]);
         allowResume(offer.argv);
       }
     }
@@ -178,6 +188,40 @@ export class TabCreator {
     return { spaceId, tabId, terminalId: address };
   }
 
+  /**
+   * What a branch of `terminalId`'s conversation resumes: its session (the transcript the world
+   * shows for it), the login its `claude` runs under (CLAUDE_CONFIG_DIR of its process; not running:
+   * the session's owner, as a resume picks), and the folder whose project folder holds it for that
+   * login (the agent's live folder, else the transcript's, else the space's), where `--resume` finds it.
+   */
+  private branchSource(space: SpaceView, terminalId: string): { session: string; config: ClaudeConfig; folder: string } {
+    const t: TerminalView | undefined = this.opts.store.world.terminals[terminalId];
+    if (!t || t.spaceId !== space.id) throw new CreateError('That agent isn’t in this space any more', 404);
+    if (t.machine !== null || t.program !== 'claude' || !t.transcript) {
+      throw new CreateError('Only a Claude Code conversation on this computer can be branched', 400);
+    }
+    const session = path.basename(t.transcript, '.jsonl');
+    if (!SESSION_ID.test(session)) throw new CreateError('Can’t tell which Claude session this is', 400);
+    const configs = this.opts.sessions.configs();
+    const running = this.opts.sessions.runningConfig(session, configs);
+    if (running === null) throw new CreateError('This conversation’s Claude login isn’t one the bridge knows', 400);
+    const candidates = [t.cwd, this.opts.sessions.summaries.get(t.transcript)?.cwd ?? null, space.folder];
+    for (const c of candidates) {
+      if (!c?.startsWith('/')) continue;
+      let real: string;
+      try {
+        real = fs.realpathSync(c);
+        if (!fs.statSync(real).isDirectory()) continue;
+      } catch {
+        continue;
+      }
+      if (path.basename(path.dirname(t.transcript)) !== projectDirName(real)) continue;
+      const config = this.opts.sessions.resolve(real, session, running?.id, configs);
+      if (config) return { session, config, folder: real };
+    }
+    throw new CreateError('Can’t find this conversation’s folder, so Claude couldn’t resume it', 409);
+  }
+
   /** True once the world shows the terminal in its new tab, false after the timeout. */
   private adopted(address: string, tabId: string): Promise<boolean> {
     const store = this.opts.store;
@@ -215,7 +259,20 @@ function spaceSize(world: World, space: SpaceView): { cols: number; rows: number
   return paneSize({ ...world, tabs: Object.fromEntries(space.tabIds.flatMap((id) => (world.tabs[id] ? [[id, world.tabs[id]]] : []))) });
 }
 
-/** `{start: {kind: 'shell' | 'claude'}}` or `{start: {kind: 'resume', session: <uuid>, config?: '.claude…'}}`, nothing else. */
+/**
+ * Claude Code as the + menu starts it (window.rs `agent_argv`: the program in the interactive shell,
+ * which stays after it), with `env CLAUDE_CONFIG_DIR=<dir>` before the program for a non-default
+ * login, then `args`. Every argument stays one argv element: the shell gets them as "$@".
+ */
+export function claudeArgv(offer: readonly string[], config: ClaudeConfig, args: readonly string[]): string[] {
+  const [wrapper, program] = [offer.slice(0, 4), offer.slice(4)];
+  return [...wrapper, ...(config.isDefault ? [] : ['env', `CLAUDE_CONFIG_DIR=${config.dir}`]), ...program, ...args];
+}
+
+/**
+ * `{start: {kind: 'shell' | 'claude'}}`, `{start: {kind: 'resume', session: <uuid>, config?: '.claude…'}}`
+ * or `{start: {kind: 'branch', terminal: <id>, name}}`, nothing else.
+ */
 export function parseTabRequest(body: unknown): NewTabStart {
   const bad = () => new CreateError('Pick what to open', 400, 'start');
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new CreateError('Bad request', 400);
@@ -226,6 +283,13 @@ export function parseTabRequest(body: unknown): NewTabStart {
   const o = s as Record<string, unknown>;
   const keys = Object.keys(o).sort().join();
   if ((o.kind === 'shell' || o.kind === 'claude') && keys === 'kind') return { kind: o.kind };
+  if (o.kind === 'branch' && keys === 'kind,name,terminal') {
+    if (typeof o.terminal !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(o.terminal)) throw bad();
+    if (typeof o.name !== 'string') throw new CreateError('Give it a name', 400, 'name');
+    const why = branchNameError(o.name);
+    if (why) throw new CreateError(why, 400, 'name');
+    return { kind: 'branch', terminal: o.terminal, name: o.name };
+  }
   if (o.kind === 'resume' && (keys === 'kind,session' || keys === 'config,kind,session')) {
     if (typeof o.session !== 'string' || !SESSION_ID.test(o.session)) throw new CreateError('That isn’t a Claude session id', 400, 'start');
     if (o.config === undefined) return { kind: 'resume', session: o.session };

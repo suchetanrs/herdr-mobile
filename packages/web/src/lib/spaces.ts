@@ -19,7 +19,7 @@ export class NewSpaceFailure extends Error {
   }
 }
 
-async function call<T>(path: string, init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<T> {
+export async function call<T>(path: string, init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<T> {
   let r: Response;
   try {
     r = await fetcher(path, {

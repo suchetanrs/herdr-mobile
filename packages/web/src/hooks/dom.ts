@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type RefObject, useEffect, useState } from 'react';
 import { isEditable, SETTLE_MS, viewportState } from '../lib/viewport';
 
 export function useMediaQuery(query: string): boolean {
@@ -77,4 +77,32 @@ export function useVisualViewport(): void {
       document.removeEventListener('focusout', settle);
     };
   }, []);
+}
+
+/**
+ * While a text field inside `box` has focus, scrolls it into view once the keyboard has come up (or the
+ * viewport changed), within whatever scrolls inside the box. The box itself follows the visual viewport (CSS).
+ */
+export function useFocusVisible(box: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const vv = window.visualViewport;
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    const reveal = () => {
+      const f = document.activeElement;
+      if (f instanceof HTMLElement && isEditable(f) && el.contains(f)) f.scrollIntoView?.({ block: 'nearest' });
+    };
+    const settle = () => {
+      for (const t of timers) clearTimeout(t);
+      timers = SETTLE_MS.map((ms) => setTimeout(reveal, ms));
+    };
+    el.addEventListener('focusin', settle);
+    vv?.addEventListener('resize', settle);
+    return () => {
+      for (const t of timers) clearTimeout(t);
+      el.removeEventListener('focusin', settle);
+      vv?.removeEventListener('resize', settle);
+    };
+  }, [box]);
 }

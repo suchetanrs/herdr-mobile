@@ -1,0 +1,118 @@
+ ▐▛███▛█   Claude Code v2.1.322
+▝▜██████▀  Haiku 5.5 · Claude Max
+ ▝▝   ▝▝   ~/code/herdr-mobile/.test-tmp/me/dbg/run
+
+
+❯ /model
+  ⎿  Kept model as Haiku 5.5
+
+❯ /model
+  ⎿  Set model to Haiku 4.5 for this session only
+
+❯ /model
+  ⎿  Set model to Haiku 5.5 for this session only
+
+❯ <hc from="t1c2">Use the Bash tool to run exactly this command: sleep 8. Then reply with just the word OK.</hc>
+
+  Ran 1 shell command
+
+● OK
+
+✻ Cooked for 11s · done 11:34 PM
+
+❯ /model
+  ⎿  Kept model as Haiku 5.5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔ ◐ medium · /effort ▔
+   Switch model?
+   Your next response will be slower and use more tokens
+
+   This conversation is cached for the current model. Switching to Haiku 4.5 means the full history gets re-read.
+
+   ❯ 1. Yes, switch to Haiku 4.5
+     2. No, go back

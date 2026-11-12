@@ -5,6 +5,7 @@ import { Icon } from '../components/Icon';
 import { ProgramIcon } from '../components/ProgramIcon';
 import { BackButton, Screen } from '../components/Screen';
 import { useLive, useServices } from '../hooks/app';
+import { useFocusVisible } from '../hooks/dom';
 import { useTapFocus } from '../hooks/gestures';
 import { programOf } from '../lib/programs';
 import { back, navigate } from '../lib/router';
@@ -58,6 +59,8 @@ export function NewSpaceScreen({ embedded = false }: { embedded?: boolean }) {
   const [name, setName] = useState('');
   const [start, setStart] = useState<NewSpaceStart>(SHELL);
   const [errors, setErrors] = useState<Errors>({});
+  const page = useRef<HTMLFormElement>(null);
+  useFocusVisible(page);
   const [busy, setBusy] = useState(false);
   const [folderFocus, setFolderFocus] = useState(false);
   const folderInput = useRef<HTMLInputElement | null>(null);
@@ -166,7 +169,7 @@ export function NewSpaceScreen({ embedded = false }: { embedded?: boolean }) {
   };
 
   const body = (
-    <form className="scroll ns-page" onSubmit={submit} noValidate>
+    <form className="scroll ns-page" ref={page} onSubmit={submit} noValidate>
       {loadError && <div className="ns-note t-blocked">{loadError}</div>}
       {opts && !opts.appOpen && (
         <div className="ns-note">
